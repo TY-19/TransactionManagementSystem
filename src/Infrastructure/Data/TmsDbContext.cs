@@ -7,6 +7,7 @@ namespace TMS.Infrastructure.Data;
 public class TmsDbContext(DbContextOptions<TmsDbContext> options) : DbContext(options)
 {
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<Client> Clients { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
