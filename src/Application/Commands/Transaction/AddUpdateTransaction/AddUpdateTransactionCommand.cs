@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using TMS.Application.Models;
 
 namespace TMS.Application.Commands.Transaction.AddUpdateTransaction;
 

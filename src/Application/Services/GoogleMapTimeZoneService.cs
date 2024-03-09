@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using TMS.Application.Interfaces;
@@ -7,7 +8,8 @@ namespace TMS.Application.Services;
 
 public class GoogleMapTimeZoneService(
     HttpClient httpClient,
-    IConfiguration configuration
+    IConfiguration configuration,
+    ILogger<GoogleMapTimeZoneService> logger
     ) : ITimeZoneService
 {
     private readonly HttpClient httpClient = httpClient;
@@ -15,7 +17,7 @@ public class GoogleMapTimeZoneService(
             ?? "https://maps.googleapis.com";
     private readonly string apiKey = configuration.GetSection("GoogleMapTimeZone")["ApiKey"] ?? "";
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-    
+
     public async Task<int> GetTimeZoneOffsetInSecondsAsync(decimal latitude, decimal longitude, long timestamp)
     {
         string urlFull = $"{baseUrl}/maps/api/timezone/json?location={latitude.ToString(CultureInfo.InvariantCulture)}%2C{longitude.ToString(CultureInfo.InvariantCulture)}&timestamp={timestamp}&key={apiKey}";
@@ -24,14 +26,14 @@ public class GoogleMapTimeZoneService(
         using var stream = response.Content.ReadAsStream();
         var deserializedResponse = JsonSerializer.Deserialize<GoogleMapApiResponse>(stream, jsonSerializerOptions);
 
-        if(deserializedResponse != null && deserializedResponse.Status == "OK")
+        if (deserializedResponse != null && deserializedResponse.Status == "OK")
         {
             return CalculateTimeZoneOffset(deserializedResponse);
         }
         else
         {
-            // Log error
-            return -3600;
+            logger.LogError("Response of external API is invalid: {@response}", deserializedResponse);
+            throw new ArgumentException("Response of external API is invalid");
         }
     }
 

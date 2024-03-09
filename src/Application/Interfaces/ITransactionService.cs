@@ -4,5 +4,5 @@ namespace TMS.Application.Interfaces;
 
 public interface ITransactionService
 {
-    Task<CustomResponse> ImportFromCsvStreamAsync(Stream stream);
+    Task<CustomResponse> ImportFromCsvAsync(Stream stream);
 }

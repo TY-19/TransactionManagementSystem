@@ -6,13 +6,18 @@ using Microsoft.Extensions.Configuration;
 namespace TMS.Application.Commands.Transaction.AddUpdateTransaction;
 
 public class AddUpdateTransactionCommandHandler(
-	IConfiguration configuration
-	) : IRequestHandler<AddUpdateTransactionCommand>
+    IConfiguration configuration
+    ) : IRequestHandler<AddUpdateTransactionCommand>
 {
     public async Task Handle(AddUpdateTransactionCommand command, CancellationToken cancellationToken)
     {
-        var parameters = new { command.TransactionId, command.ClientEmail, command.Amount,
-			command.TransactionDate };
+        var parameters = new
+        {
+            command.TransactionId,
+            command.ClientEmail,
+            command.Amount,
+            command.TransactionDate
+        };
 
         var sql = @$"
 			IF EXISTS (SELECT 1 FROM Transactions WHERE TransactionId = @TransactionId)
@@ -21,7 +26,7 @@ public class AddUpdateTransactionCommandHandler(
                 SET ClientId = (SELECT Id FROM Clients WHERE Email = @ClientEmail),
 		            TransactionDate = @TransactionDate,
 		            Amount = @Amount
-                WHERE TransactionId = 1;
+                WHERE TransactionId = @TransactionId;
             END
             ELSE
             BEGIN

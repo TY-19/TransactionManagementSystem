@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using TMS.Application.Models;
 
 namespace TMS.Application.Commands.Client.AddUpdateClient;
 
@@ -29,6 +28,6 @@ public class AddUpdateClientCommandHandler(
 		";
 
         using var dbConnection = new SqlConnection(configuration.GetConnectionString("Default"));
-		await dbConnection.ExecuteAsync(sql, parameters);
+        await dbConnection.ExecuteAsync(sql, parameters);
     }
 }

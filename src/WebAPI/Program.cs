@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.MSSqlServer;
 using System.Reflection;
 using TMS.Application;
 using TMS.Application.Services;
@@ -12,6 +15,22 @@ builder.Services.RegisterApplicationServices();
 builder.Services.AddDbContext<TmsDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
+});
+
+builder.Services.AddSerilog(options =>
+{
+    options
+        .MinimumLevel.Debug()
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .ReadFrom.Configuration(builder.Configuration)
+        .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString("Default"),
+            restrictedToMinimumLevel: LogEventLevel.Information,
+            sinkOptions: new MSSqlServerSinkOptions()
+            {
+                TableName = "LogEvents",
+                AutoCreateSqlTable = true,
+            })
+        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Debug);
 });
 
 builder.Services.AddHttpClient<GoogleMapTimeZoneService>();
@@ -27,6 +46,8 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 using (var scope = app.Services.CreateScope())
 {

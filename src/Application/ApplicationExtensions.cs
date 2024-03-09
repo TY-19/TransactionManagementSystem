@@ -1,7 +1,9 @@
-﻿using MediatR;
+﻿using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
-using FluentValidation;
+using TMS.Application.Behaviors;
+using TMS.Application.Helpers;
 using TMS.Application.Interfaces;
 using TMS.Application.Services;
 
@@ -16,9 +18,11 @@ public static class ApplicationExtensions
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
 
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<ICsvParser, CsvParser>();
         services.AddScoped<ITimeZoneServiceFactory, TimeZoneServiceFactory>();
 
         return services;

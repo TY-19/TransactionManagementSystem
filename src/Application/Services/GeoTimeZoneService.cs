@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -8,9 +9,11 @@ namespace TMS.Application.Services;
 
 public class GeoTimeZoneService(
     HttpClient httpClient,
-    IConfiguration configuration
+    IConfiguration configuration,
+    ILogger<GeoTimeZoneService> logger
     ) : ITimeZoneService
 {
+    private const int NumberSecondsInHour = 3600;
     private readonly HttpClient httpClient = httpClient;
     private readonly string baseUrl = configuration.GetSection("GeoTimeZone")["BaseUrl"]
         ?? "http://api.geotimezone.com";
@@ -24,30 +27,41 @@ public class GeoTimeZoneService(
         var deserializedResponse = JsonSerializer.Deserialize<GeoTimeZoneResponse>(stream, jsonSerializerOptions);
         if (deserializedResponse != null)
         {
-            return CalculateTimeZoneOffset(deserializedResponse);
+            return CalculateTimeZoneOffset(deserializedResponse, timestamp) * NumberSecondsInHour;
         }
         else
         {
-            // Log error
-            return -3600;
+            logger.LogError("Response of external API is invalid: {@response}", deserializedResponse);
+            throw new ArgumentException("Response of external API is invalid");
         }
     }
-    
-    private static int CalculateTimeZoneOffset(GeoTimeZoneResponse response)
+
+    private int CalculateTimeZoneOffset(GeoTimeZoneResponse response, long timestamp)
     {
-        int offset = 0;
-        if (response.Offset != null && int.TryParse(response.Offset[3..], out offset))
-            offset *= 3600;
-        
-        int dstOffset = 0;
-        if (response.DstOffset != null && int.TryParse(response.DstOffset[3..], out dstOffset))
-            dstOffset *= 3600;
+        if (response.Offset == null || !int.TryParse(response.Offset[3..], out int offset))
+        {
+            logger.LogError("Response of external API does not contain valid offset: {offset}", response.Offset);
+            throw new ArgumentException("Response of external API is invalid");
+        }
 
-        //TimeZoneInfo.FindSystemTimeZoneById()
-        //Check if dst is in effect
-        //TimeZoneInfo.Local.IsDaylightSavingTime(time)
+        if (response.DstOffset == null || !int.TryParse(response.DstOffset[3..], out int dstOffset))
+            return offset;
 
-        return offset;
+        return IsDstActive(timestamp, response.IanaTimezone)
+            ? dstOffset
+            : offset;
+    }
+
+    private static bool IsDstActive(long timestamp, string? IanaTimeZone)
+    {
+        if (string.IsNullOrEmpty(IanaTimeZone))
+            return false;
+
+        if (!TimeZoneInfo.TryFindSystemTimeZoneById(IanaTimeZone, out var timeZone))
+            return false;
+
+        DateTimeOffset date = DateTimeOffset.FromUnixTimeSeconds(timestamp);
+        return timeZone.IsDaylightSavingTime(date);
     }
 
     private sealed class GeoTimeZoneResponse
