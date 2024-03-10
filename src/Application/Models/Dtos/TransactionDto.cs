@@ -1,4 +1,4 @@
-﻿namespace TMS.Application.Models;
+﻿namespace TMS.Application.Models.Dtos;
 
 public class TransactionDto
 {

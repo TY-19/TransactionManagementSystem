@@ -2,58 +2,39 @@
 using MediatR;
 using Microsoft.Data.SqlClient;
 using System.Text;
+using TMS.Application.Common;
 using TMS.Application.Interfaces;
+using TMS.Application.Models.Dtos;
 
 namespace TMS.Application.Queries.TransactionClient.GetAllTransactionsClients;
 
 public class GetAllTransactionsClientsQueryHandler(
     IDbConnectionOptions connectionOptions
-    ) : IRequestHandler<GetAllTransactionsClientsQuery, IEnumerable<TransactionClientPartDto>>
+    ) : IRequestHandler<GetAllTransactionsClientsQuery, IEnumerable<TransactionClientExportDto>>
 {
-    public async Task<IEnumerable<TransactionClientPartDto>> Handle(GetAllTransactionsClientsQuery request, CancellationToken cancellationToken)
+    private readonly string queryOffset = @$"DATENAME(tzoffset, TransactionDate) AS Offset";
+    public async Task<IEnumerable<TransactionClientExportDto>> Handle(GetAllTransactionsClientsQuery request, CancellationToken cancellationToken)
     {
-        var sql = @$"SELECT {GetRequestedFieldNames(request.RequestedFields)}
-            FROM Transactions t
-            JOIN Clients c ON t.ClientId = c.Id";
+        var sql = @$"SELECT {GetRequestedFieldNames(request.RequestedColumns)}
+			FROM Transactions
+			JOIN Clients ON Transactions.ClientId = Clients.Id";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
-        return await dbConnection.QueryAsync<TransactionClientPartDto>(sql);
+        return await dbConnection.QueryAsync<TransactionClientExportDto>(sql);
     }
 
-    private static string GetRequestedFieldNames(string? requested)
+    private string GetRequestedFieldNames(List<PropertyNames> requestedColumns)
     {
         StringBuilder sb = new();
-        var fields = requested.ToLower().Replace("_", "").Split(",");
-
-        foreach (var field in fields)
+        foreach (var column in requestedColumns)
         {
-            switch (field)
+            if (column.NormalizedName == TransactionPropertiesNames.Offset.NormalizedName)
             {
-                case "id":
-                    sb.Append("t.TransactionId, ");
-                    break;
-                case "transactionid":
-                    sb.Append("t.TransactionId, ");
-                    break;
-                case "name":
-                    sb.Append("c.Name, ");
-                    break;
-                case "email":
-                    sb.Append("c.Email, ");
-                    break;
-                case "amount":
-                    sb.Append("t.Amount, ");
-                    break;
-                case "transactiondate":
-                    sb.Append("t.TransactionDate, ");
-                    break;
-                case "latitude":
-                    sb.Append("c.Latitude, ");
-                    break;
-                case "longitude":
-                    sb.Append("c.Longitude, ");
-                    break;
+                sb.Append(queryOffset + ", ");
+                continue;
             }
+
+            sb.Append(column.DataBaseName + ", ");
         }
         sb.Remove(sb.Length - 2, 1);
         return sb.ToString();

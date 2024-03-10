@@ -1,4 +1,5 @@
 ﻿using TMS.Application.Models;
+using TMS.Application.Models.Dtos;
 
 namespace TMS.Application.Interfaces;
 

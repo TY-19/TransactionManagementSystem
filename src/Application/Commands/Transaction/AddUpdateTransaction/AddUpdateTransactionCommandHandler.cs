@@ -21,22 +21,22 @@ public class AddUpdateTransactionCommandHandler(
 
         var sql = @$"
 			IF EXISTS (SELECT 1 FROM Transactions WHERE TransactionId = @TransactionId)
-            BEGIN
-                UPDATE Transactions
-                SET ClientId = (SELECT Id FROM Clients WHERE Email = @ClientEmail),
-		            TransactionDate = @TransactionDate,
-		            Amount = @Amount
-                WHERE TransactionId = @TransactionId;
-            END
-            ELSE
-            BEGIN
-                INSERT INTO Transactions (TransactionId, ClientId, TransactionDate, Amount)
-                VALUES (
-                    @TransactionId, 
-		            (SELECT Id FROM Clients WHERE Email = @ClientEmail),
-		            @TransactionDate,
-		            @Amount);
-            END
+			BEGIN
+				UPDATE Transactions
+				SET ClientId = (SELECT Id FROM Clients WHERE Email = @ClientEmail),
+					TransactionDate = @TransactionDate,
+					Amount = @Amount
+				WHERE TransactionId = @TransactionId;
+			END
+			ELSE
+			BEGIN
+				INSERT INTO Transactions (TransactionId, ClientId, TransactionDate, Amount)
+				VALUES (
+					@TransactionId, 
+					(SELECT Id FROM Clients WHERE Email = @ClientEmail),
+					@TransactionDate,
+					@Amount);
+			END
 		";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);

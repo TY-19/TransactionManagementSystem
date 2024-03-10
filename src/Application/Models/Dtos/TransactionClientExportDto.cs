@@ -1,6 +1,6 @@
-﻿namespace TMS.Application.Queries.TransactionClient;
+﻿namespace TMS.Application.Models.Dtos;
 
-public class TransactionClientPartDto
+public class TransactionClientExportDto
 {
     public string? TransactionId { get; set; } = null!;
     public string? Name { get; set; } = null!;
@@ -9,4 +9,5 @@ public class TransactionClientPartDto
     public decimal? Longitude { get; set; }
     public decimal? Amount { get; set; }
     public DateTimeOffset? TransactionDate { get; set; }
+    public string? Offset { get; set; }
 }
