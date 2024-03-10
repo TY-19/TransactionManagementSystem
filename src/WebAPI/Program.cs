@@ -5,6 +5,7 @@ using Serilog.Events;
 using Serilog.Sinks.MSSqlServer;
 using System.Reflection;
 using TMS.Application;
+using TMS.Application.Interfaces;
 using TMS.Application.Services;
 using TMS.Infrastructure.Data;
 
@@ -14,8 +15,10 @@ builder.Services.RegisterApplicationServices();
 
 builder.Services.AddDbContext<TmsDbContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString(
+            DbConnectionOptions.DefaultConnectionStringName));
 });
+builder.Services.AddSingleton<IDbConnectionOptions, DbConnectionOptions>();
 
 builder.Services.AddSerilog(options =>
 {
@@ -23,7 +26,8 @@ builder.Services.AddSerilog(options =>
         .MinimumLevel.Debug()
         .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
         .ReadFrom.Configuration(builder.Configuration)
-        .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString("Default"),
+        .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString(
+            DbConnectionOptions.DefaultConnectionStringName),
             restrictedToMinimumLevel: LogEventLevel.Information,
             sinkOptions: new MSSqlServerSinkOptions()
             {

@@ -1,12 +1,12 @@
 ﻿using Dapper;
 using MediatR;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
+using TMS.Application.Interfaces;
 
 namespace TMS.Application.Commands.Transaction.AddUpdateTransaction;
 
 public class AddUpdateTransactionCommandHandler(
-    IConfiguration configuration
+    IDbConnectionOptions connectionOptions
     ) : IRequestHandler<AddUpdateTransactionCommand>
 {
     public async Task Handle(AddUpdateTransactionCommand command, CancellationToken cancellationToken)
@@ -39,7 +39,7 @@ public class AddUpdateTransactionCommandHandler(
             END
 		";
 
-        using var dbConnection = new SqlConnection(configuration.GetConnectionString("Default"));
+        using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
         await dbConnection.ExecuteAsync(sql, parameters);
     }
 }
