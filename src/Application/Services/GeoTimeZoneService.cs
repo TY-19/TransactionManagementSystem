@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using TMS.Application.Interfaces;
 
 namespace TMS.Application.Services;
@@ -13,43 +14,58 @@ public class GeoTimeZoneService(
     ILogger<GeoTimeZoneService> logger
     ) : ITimeZoneService
 {
-    private const int NumberSecondsInHour = 3600;
     private readonly HttpClient httpClient = httpClient;
-    private readonly string baseUrl = configuration.GetSection("GeoTimeZone")["BaseUrl"]
-        ?? "http://api.geotimezone.com";
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-    public async Task<int> GetTimeZoneOffsetInSecondsAsync(decimal latitude, decimal longitude, long timestamp)
+    private string BaseUrl => configuration.GetSection("GeoTimeZone")["BaseUrl"]
+        ?? "http://api.geotimezone.com/public/timezone";
+    public async Task<int> GetTimeZoneOffsetInMinutesAsync(decimal latitude, decimal longitude, long timestamp)
     {
-        string urlFull = $"{baseUrl}/public/timezone?latitude={latitude.ToString(CultureInfo.InvariantCulture)}&longitude={longitude.ToString(CultureInfo.InvariantCulture)}";
+        string urlFull = $"{BaseUrl}?latitude={latitude.ToString(CultureInfo.InvariantCulture)}&longitude={longitude.ToString(CultureInfo.InvariantCulture)}";
         var response = await httpClient.GetAsync(urlFull);
 
         using var stream = response.Content.ReadAsStream();
         var deserializedResponse = JsonSerializer.Deserialize<GeoTimeZoneResponse>(stream, jsonSerializerOptions);
-        if (deserializedResponse != null)
-        {
-            return CalculateTimeZoneOffset(deserializedResponse, timestamp) * NumberSecondsInHour;
-        }
-        else
-        {
-            logger.LogError("Response of external API is invalid: {@response}", deserializedResponse);
-            throw new ArgumentException("Response of external API is invalid");
-        }
+        return CalculateTimeZoneOffset(deserializedResponse, timestamp);
     }
 
-    private int CalculateTimeZoneOffset(GeoTimeZoneResponse response, long timestamp)
+    private int CalculateTimeZoneOffset(GeoTimeZoneResponse? response, long timestamp)
     {
-        if (response.Offset == null || !int.TryParse(response.Offset[3..], out int offset))
+        int? offset = null;
+        if (response != null)
+            offset = GetOffsetInMinutes(response.Offset);
+
+        if (response == null || offset == null)
         {
-            logger.LogError("Response of external API does not contain valid offset: {offset}", response.Offset);
+            logger.LogError("Response of external API does not contain valid offset: {response}", response);
             throw new ArgumentException("Response of external API is invalid");
         }
 
-        if (response.DstOffset == null || !int.TryParse(response.DstOffset[3..], out int dstOffset))
-            return offset;
+        int? dstOffset = GetOffsetInMinutes(response.DstOffset);
+        if (dstOffset == null)
+            return offset.Value;
 
         return IsDstActive(timestamp, response.IanaTimezone)
-            ? dstOffset
-            : offset;
+            ? dstOffset.Value
+            : offset.Value;
+    }
+
+    private static int? GetOffsetInMinutes(string? toParse)
+    {
+        if (toParse == null) return null;
+
+        string pattern = @"([+-]\d{1,2}):?(\d{1,2})?";
+        Match match = Regex.Match(toParse!, pattern);
+        if (!match.Success || !int.TryParse(match.Groups[1].Value, out int hours))
+            return null;
+
+        int offset = hours * 60;
+        if (int.TryParse(match.Groups[1].Value, out int minutes))
+        {
+            if (match.Groups[1].Value[0] == '-') offset -= minutes;
+            else offset += minutes;
+        }
+
+        return offset;
     }
 
     private static bool IsDstActive(long timestamp, string? IanaTimeZone)

@@ -39,7 +39,7 @@ public class GetAllTransactionsClientsQueryHandler(
 
     private void ApplyCalculationRules(StringBuilder sb)
     {
-        foreach(var rule in calculationRules)
+        foreach (var rule in calculationRules)
             sb.Replace(rule.Key, rule.Value);
     }
 }

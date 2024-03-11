@@ -67,8 +67,10 @@ public class TransactionService(
         var requestedColumns = propertyManager.GetPropertiesTypes(fields.Split(','));
 
         IEnumerable<TransactionClientExportDto> transactions = await mediator.Send(
-            new GetAllTransactionsClientsQuery() {
-                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns) });
+            new GetAllTransactionsClientsQuery()
+            {
+                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns)
+            });
 
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedColumns, userOffset);
     }

@@ -13,14 +13,13 @@ public class GoogleMapTimeZoneService(
     ) : ITimeZoneService
 {
     private readonly HttpClient httpClient = httpClient;
-    private readonly string baseUrl = configuration.GetSection("GoogleMapTimeZone")["BaseUrl"]
-            ?? "https://maps.googleapis.com";
-    private readonly string apiKey = configuration.GetSection("GoogleMapTimeZone")["ApiKey"] ?? "";
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-
-    public async Task<int> GetTimeZoneOffsetInSecondsAsync(decimal latitude, decimal longitude, long timestamp)
+    private readonly string apiKey = configuration.GetSection("GoogleMapTimeZone")["ApiKey"] ?? "";
+    private string BaseUrl => configuration.GetSection("GoogleMapTimeZone")["BaseUrl"]
+        ?? "https://maps.googleapis.com/maps/api/timezone/json";
+    public async Task<int> GetTimeZoneOffsetInMinutesAsync(decimal latitude, decimal longitude, long timestamp)
     {
-        string urlFull = $"{baseUrl}/maps/api/timezone/json?location={latitude.ToString(CultureInfo.InvariantCulture)}%2C{longitude.ToString(CultureInfo.InvariantCulture)}&timestamp={timestamp}&key={apiKey}";
+        string urlFull = $"{BaseUrl}?location={latitude.ToString(CultureInfo.InvariantCulture)}%2C{longitude.ToString(CultureInfo.InvariantCulture)}&timestamp={timestamp}&key={apiKey}";
         var response = await httpClient.GetAsync(urlFull);
 
         using var stream = response.Content.ReadAsStream();
@@ -39,8 +38,8 @@ public class GoogleMapTimeZoneService(
 
     private static int CalculateTimeZoneOffset(GoogleMapApiResponse response)
     {
-        int raw = response.RawOffset == null ? 0 : response.RawOffset.Value;
-        int dst = response.DstOffset == null ? 0 : response.DstOffset.Value;
+        int raw = response.RawOffset == null ? 0 : response.RawOffset.Value / 60;
+        int dst = response.DstOffset == null ? 0 : response.DstOffset.Value / 60;
         return raw + dst;
     }
 

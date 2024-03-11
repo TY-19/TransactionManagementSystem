@@ -181,10 +181,10 @@ public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvPar
 
         long timestamp = (long)(local - DateTime.UnixEpoch).TotalSeconds;
 
-        int offsetInSeconds;
+        int offsetInMinutes;
         try
         {
-            offsetInSeconds = await timeZoneService.GetTimeZoneOffsetInSecondsAsync(
+            offsetInMinutes = await timeZoneService.GetTimeZoneOffsetInMinutesAsync(
                 latitude.Value, longitude.Value, timestamp);
         }
         catch (Exception ex)
@@ -193,7 +193,7 @@ public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvPar
             return null;
         }
 
-        return new DateTimeOffset(local, TimeSpan.FromSeconds(offsetInSeconds));
+        return new DateTimeOffset(local, TimeSpan.FromMinutes(offsetInMinutes));
     }
 
     private static string GetError(string propertyName, string property, string? message = null)

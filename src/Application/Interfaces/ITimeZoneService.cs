@@ -2,5 +2,5 @@
 
 public interface ITimeZoneService
 {
-    Task<int> GetTimeZoneOffsetInSecondsAsync(decimal latitude, decimal longitude, long timestamp);
+    Task<int> GetTimeZoneOffsetInMinutesAsync(decimal latitude, decimal longitude, long timestamp);
 }

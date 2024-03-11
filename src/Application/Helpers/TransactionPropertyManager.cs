@@ -49,7 +49,7 @@ public class TransactionPropertyManager : ITransactionPropertyManager
     public TransactionPropertyName? GetProperty(string name)
     {
         if (string.IsNullOrEmpty(name)) return null;
-        
+
         name = name.ToLower().Replace("_", "");
 
         if (normalizedNames.ContainsValue(name))
@@ -80,10 +80,10 @@ public class TransactionPropertyManager : ITransactionPropertyManager
     public List<string> GetDatabaseColumnNames(IEnumerable<TransactionPropertyName> properties)
     {
         List<string> dbNames = [];
-        foreach(var prop in properties)
+        foreach (var prop in properties)
         {
             var dbName = dataBaseColumnNames[prop];
-            if(dbName != null)
+            if (dbName != null)
                 dbNames.Add(dbName);
         }
         return dbNames;
