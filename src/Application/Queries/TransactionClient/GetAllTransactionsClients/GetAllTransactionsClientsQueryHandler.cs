@@ -2,7 +2,6 @@
 using MediatR;
 using Microsoft.Data.SqlClient;
 using System.Text;
-using TMS.Application.Common;
 using TMS.Application.Interfaces;
 using TMS.Application.Models.Dtos;
 
@@ -12,10 +11,13 @@ public class GetAllTransactionsClientsQueryHandler(
     IDbConnectionOptions connectionOptions
     ) : IRequestHandler<GetAllTransactionsClientsQuery, IEnumerable<TransactionClientExportDto>>
 {
-    private readonly string queryOffset = @$"DATENAME(tzoffset, TransactionDate) AS Offset";
+    private readonly Dictionary<string, string> calculationRules = new()
+    {
+        { "calculateOffset", @$"DATENAME(tzoffset, TransactionDate) AS Offset" }
+    };
     public async Task<IEnumerable<TransactionClientExportDto>> Handle(GetAllTransactionsClientsQuery request, CancellationToken cancellationToken)
     {
-        var sql = @$"SELECT {GetRequestedFieldNames(request.RequestedColumns)}
+        var sql = @$"SELECT {GetRequestedColumnNames(request.RequestedColumns)}
 			FROM Transactions
 			JOIN Clients ON Transactions.ClientId = Clients.Id";
 
@@ -23,20 +25,21 @@ public class GetAllTransactionsClientsQueryHandler(
         return await dbConnection.QueryAsync<TransactionClientExportDto>(sql);
     }
 
-    private string GetRequestedFieldNames(List<PropertyNames> requestedColumns)
+    private string GetRequestedColumnNames(List<string> requestedColumns)
     {
         StringBuilder sb = new();
         foreach (var column in requestedColumns)
         {
-            if (column.NormalizedName == TransactionPropertiesNames.Offset.NormalizedName)
-            {
-                sb.Append(queryOffset + ", ");
-                continue;
-            }
-
-            sb.Append(column.DataBaseName + ", ");
+            sb.Append(column + ", ");
         }
         sb.Remove(sb.Length - 2, 1);
+        ApplyCalculationRules(sb);
         return sb.ToString();
+    }
+
+    private void ApplyCalculationRules(StringBuilder sb)
+    {
+        foreach(var rule in calculationRules)
+            sb.Replace(rule.Key, rule.Value);
     }
 }

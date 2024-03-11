@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using TMS.Application.Commands.Client.AddUpdateClient;
 using TMS.Application.Commands.Transaction.AddUpdateTransaction;
-using TMS.Application.Common;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Application.Models.Dtos;
@@ -15,6 +14,7 @@ public class TransactionService(
     IMediator mediator,
     ICsvParser csvParser,
     IXlsxHelper xlsxHelper,
+    ITransactionPropertyManager propertyManager,
     ILogger<TransactionService> logger
     ) : ITransactionService
 {
@@ -64,10 +64,11 @@ public class TransactionService(
 
     public async Task<MemoryStream> ExportToExcelAsync(string fields, int? userOffset)
     {
-        var requestedColumns = TransactionPropertiesNames.GetProperiesByNames(fields.Split(','));
+        var requestedColumns = propertyManager.GetPropertiesTypes(fields.Split(','));
 
         IEnumerable<TransactionClientExportDto> transactions = await mediator.Send(
-            new GetAllTransactionsClientsQuery() { RequestedColumns = requestedColumns });
+            new GetAllTransactionsClientsQuery() {
+                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns) });
 
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedColumns, userOffset);
     }

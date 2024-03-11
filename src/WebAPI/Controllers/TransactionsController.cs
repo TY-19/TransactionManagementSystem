@@ -34,7 +34,7 @@ public class TransactionsController(ITransactionService transactionService) : Co
         return result.Succeeded ? NoContent() : BadRequest(result.Message);
     }
 
-    private const string defaultFieldsToExport = "transactionId,name,email,amount,transactionDate,offset";
+    private const string defaultFieldsToExport = "transactionId,name,email,amount,transactionDate,offset,latitude,longitude";
     /// <summary>
     /// Allows to export specified field of transactions into an .xlsx file
     /// </summary>

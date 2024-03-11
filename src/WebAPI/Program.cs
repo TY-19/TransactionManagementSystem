@@ -28,7 +28,7 @@ builder.Services.AddSerilog(options =>
         .ReadFrom.Configuration(builder.Configuration)
         .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString(
             DbConnectionOptions.DefaultConnectionStringName),
-            restrictedToMinimumLevel: LogEventLevel.Information,
+            restrictedToMinimumLevel: LogEventLevel.Warning,
             sinkOptions: new MSSqlServerSinkOptions()
             {
                 TableName = "LogEvents",

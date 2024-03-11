@@ -25,7 +25,7 @@ public static class ApplicationExtensions
         services.AddScoped<ICsvParser, CsvParser>();
         services.AddScoped<IXlsxHelper, XlsxHelper>();
         services.AddScoped<ITimeZoneServiceFactory, TimeZoneServiceFactory>();
-
+        services.AddSingleton<ITransactionPropertyManager, TransactionPropertyManager>();
 
         return services;
     }

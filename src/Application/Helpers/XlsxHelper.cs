@@ -1,11 +1,11 @@
 ﻿using ClosedXML.Excel;
-using TMS.Application.Common;
 using TMS.Application.Interfaces;
 using TMS.Application.Models.Dtos;
+using TMS.Domain.Enums;
 
 namespace TMS.Application.Helpers;
 
-public class XlsxHelper : IXlsxHelper
+public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelper
 {
     private List<Action<TransactionClientExportDto, int>> actions = null!;
     private XLWorkbook workbook = null!;
@@ -16,7 +16,7 @@ public class XlsxHelper : IXlsxHelper
 
     public bool InsertTimeZoneColumn { get; set; }
     public MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionClientExportDto> transactions,
-        List<PropertyNames> columns, int? userOffset)
+        List<TransactionPropertyName> columns, int? userOffset)
     {
         ClearState();
         this.userOffset = userOffset;
@@ -39,13 +39,13 @@ public class XlsxHelper : IXlsxHelper
         userOffset = null;
         offSetReadable = null;
     }
-    private void WriteColumnHeader(int columnNumber, PropertyNames propertyName)
+    private void WriteColumnHeader(int columnNumber, TransactionPropertyName propertyName)
     {
-        worksheet.Cell(1, columnNumber).Value = propertyName.DisplayedName;
+        worksheet.Cell(1, columnNumber).Value = propertyManager.GetDisplayedName(propertyName);
     }
-    private void SetPropertyForTheColumn(PropertyNames propertyName)
+    private void SetPropertyForTheColumn(TransactionPropertyName propertyName)
     {
-        actions.Add(SetSelectedProperty(columnNumber, propertyName.NormalizedName));
+        actions.Add(GetWritingAction(columnNumber, propertyName));
     }
 
     private void WriteTransactions(IEnumerable<TransactionClientExportDto> transactions)
@@ -63,47 +63,25 @@ public class XlsxHelper : IXlsxHelper
         }
     }
 
-    private Action<TransactionClientExportDto, int> SetSelectedProperty(int column, string propertyName)
+    private Action<TransactionClientExportDto, int> GetWritingAction(int column, TransactionPropertyName prop)
     {
-        Action<TransactionClientExportDto, int> action = (t, row) => { };
-        switch (propertyName)
-        {
-            case string transactionId when transactionId == TransactionPropertiesNames.TransactionId.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.TransactionId;
-                break;
-            case string transactionIdShort when transactionIdShort == TransactionPropertiesNames.TransactionIdShort.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.TransactionId;
-                break;
-            case string name when name == TransactionPropertiesNames.Name.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.Name;
-                break;
-            case string email when email == TransactionPropertiesNames.Email.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.Email;
-                break;
-            case string amount when amount == TransactionPropertiesNames.Amount.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = $"${(t.Amount == null ? 0 : t.Amount.Value)}";
-                break;
-            case string transactionDate when transactionDate == TransactionPropertiesNames.TransactionDate.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.TransactionDate == null ? "" : GetDateTime(t.TransactionDate.Value);
-                break;
-            case string offset when offset == TransactionPropertiesNames.Offset.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = GetOffset(t.Offset);
-                break;
-            case string latitude when latitude == TransactionPropertiesNames.Latitude.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.Latitude;
-                break;
-            case string longitude when longitude == TransactionPropertiesNames.Longitude.NormalizedName:
-                action = (t, row) => worksheet.Cell(row, column).Value = t.Longitude;
-                break;
-        }
-        return action;
+        return (t, row) => worksheet.Cell(row, column).Value = GetProperty(t, prop);
     }
-    public MemoryStream WorkbookAsAMemoryStream()
+    private XLCellValue GetProperty(TransactionClientExportDto transaction, TransactionPropertyName prop)
     {
-        var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        stream.Position = 0;
-        return stream;
+        return prop switch
+        {
+            TransactionPropertyName.TransactionId => transaction.TransactionId,
+            TransactionPropertyName.Name => transaction.Name,
+            TransactionPropertyName.Email => transaction.Email,
+            TransactionPropertyName.Amount => $"${(transaction.Amount == null ? 0 : transaction.Amount.Value)}",
+            TransactionPropertyName.TransactionDate => transaction.TransactionDate == null ? ""
+                : GetDateTime(transaction.TransactionDate.Value),
+            TransactionPropertyName.Offset => GetOffset(transaction.Offset),
+            TransactionPropertyName.Latitude => transaction.Latitude,
+            TransactionPropertyName.Longitude => transaction.Longitude,
+            _ => "",
+        };
     }
 
     private DateTime GetDateTime(DateTimeOffset dateTime)
@@ -121,12 +99,20 @@ public class XlsxHelper : IXlsxHelper
 
         if (offSetReadable == null)
         {
-            char sign = userOffset > 0 ? '+' : '-';
+            char sign = userOffset >= 0 ? '+' : '-';
             int hours = userOffset.Value / 60;
             int minutes = userOffset.Value % 60;
             offSetReadable = $"{sign}{hours:D2}:{minutes:D2}";
         }
 
         return offSetReadable;
+    }
+
+    public MemoryStream WorkbookAsAMemoryStream()
+    {
+        var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+        return stream;
     }
 }
