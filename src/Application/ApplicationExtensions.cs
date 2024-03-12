@@ -22,6 +22,7 @@ public static class ApplicationExtensions
         });
 
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IIpService, FreeIpService>();
         services.AddScoped<ICsvParser, CsvParser>();
         services.AddScoped<IXlsxHelper, XlsxHelper>();
         services.AddScoped<ITimeZoneServiceFactory, TimeZoneServiceFactory>();

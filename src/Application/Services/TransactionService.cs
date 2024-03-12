@@ -53,10 +53,12 @@ public class TransactionService(
             catch (ValidationException ex)
             {
                 logger.LogError(ex, "One or more validation errors has occurred");
+                throw;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "An error occur when writing to the database");
+                throw;
             }
         }
         return new CustomResponse() { Succeeded = true };

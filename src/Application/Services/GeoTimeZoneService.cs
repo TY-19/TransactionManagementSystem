@@ -53,19 +53,16 @@ public class GeoTimeZoneService(
     {
         if (toParse == null) return null;
 
-        string pattern = @"([+-]\d{1,2}):?(\d{1,2})?";
-        Match match = Regex.Match(toParse!, pattern);
-        if (!match.Success || !int.TryParse(match.Groups[1].Value, out int hours))
+        string pattern = @"([+-])(\d{1,2}):?(\d{1,2})?";
+        Match match = Regex.Match(toParse, pattern);
+        if (!match.Success || !int.TryParse(match.Groups[2].Value, out int hours))
             return null;
 
         int offset = hours * 60;
-        if (int.TryParse(match.Groups[1].Value, out int minutes))
-        {
-            if (match.Groups[1].Value[0] == '-') offset -= minutes;
-            else offset += minutes;
-        }
+        if (int.TryParse(match.Groups[3].Value, out int minutes))
+            offset += minutes;
 
-        return offset;
+        return match.Groups[1].Value == "-" ? -offset : offset;
     }
 
     private static bool IsDstActive(long timestamp, string? IanaTimeZone)

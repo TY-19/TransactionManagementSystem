@@ -6,7 +6,6 @@ using Serilog.Sinks.MSSqlServer;
 using System.Reflection;
 using TMS.Application;
 using TMS.Application.Interfaces;
-using TMS.Application.Services;
 using TMS.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,7 +23,6 @@ builder.Services.AddSerilog(options =>
 {
     options
         .MinimumLevel.Debug()
-        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
         .ReadFrom.Configuration(builder.Configuration)
         .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString(
             DbConnectionOptions.DefaultConnectionStringName),
@@ -37,8 +35,7 @@ builder.Services.AddSerilog(options =>
         .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Debug);
 });
 
-builder.Services.AddHttpClient<GoogleMapTimeZoneService>();
-builder.Services.AddHttpClient<GeoTimeZoneService>();
+builder.Services.AddHttpClient();
 
 builder.Services.AddControllers();
 

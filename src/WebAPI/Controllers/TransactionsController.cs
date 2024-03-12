@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Net;
 using TMS.Application.Interfaces;
 
 namespace TMS.WebAPI.Controllers;
@@ -8,7 +9,10 @@ namespace TMS.WebAPI.Controllers;
 /// </summary>
 [Route("api/[controller]")]
 [ApiController]
-public class TransactionsController(ITransactionService transactionService) : ControllerBase
+public class TransactionsController(
+    ITransactionService transactionService,
+    IIpService ipService
+    ) : ControllerBase
 {
     /// <summary>
     /// Allows to import transactions from a CSV file.
@@ -61,8 +65,8 @@ public class TransactionsController(ITransactionService transactionService) : Co
     {
         if (timeInUsersTimeZone && offset == null)
         {
-            // TODO: Implement service to determine current user offset based on IP
-            offset = 0;
+            IPAddress? ipAddress = Request.HttpContext.Connection.RemoteIpAddress;
+            offset = await ipService.GetTimeZoneOffsetInMinutesAsync(ipAddress?.MapToIPv4().ToString() ?? "");
         }
 
         MemoryStream stream = await transactionService.ExportToExcelAsync(fields, offset);
