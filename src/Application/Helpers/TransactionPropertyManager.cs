@@ -50,7 +50,7 @@ public class TransactionPropertyManager : ITransactionPropertyManager
     {
         if (string.IsNullOrEmpty(name)) return null;
 
-        name = name.ToLower().Replace("_", "");
+        name = name.ToLower().Replace("_", "").Replace(" ", "");
 
         if (normalizedNames.ContainsValue(name))
             return normalizedNames.First(n => n.Value == name).Key;

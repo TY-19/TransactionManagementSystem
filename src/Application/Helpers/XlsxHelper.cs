@@ -1,4 +1,6 @@
 ﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Spreadsheet;
+using DocumentFormat.OpenXml.Wordprocessing;
 using TMS.Application.Interfaces;
 using TMS.Application.Models.Dtos;
 using TMS.Domain.Enums;
@@ -65,7 +67,11 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
 
     private Action<TransactionClientExportDto, int> GetWritingAction(int column, TransactionPropertyName prop)
     {
-        return (t, row) => worksheet.Cell(row, column).Value = GetProperty(t, prop);
+        return (t, row) =>
+        {
+            worksheet.Cell(row, column).Value = GetProperty(t, prop);
+            ApplyStyles(worksheet, row, column, prop);
+        };
     }
     private XLCellValue GetProperty(TransactionClientExportDto transaction, TransactionPropertyName prop)
     {
@@ -74,7 +80,7 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
             TransactionPropertyName.TransactionId => transaction.TransactionId,
             TransactionPropertyName.Name => transaction.Name,
             TransactionPropertyName.Email => transaction.Email,
-            TransactionPropertyName.Amount => $"${(transaction.Amount == null ? 0 : transaction.Amount.Value)}",
+            TransactionPropertyName.Amount => transaction.Amount,
             TransactionPropertyName.TransactionDate => transaction.TransactionDate == null ? ""
                 : GetDateTime(transaction.TransactionDate.Value),
             TransactionPropertyName.Offset => GetOffset(transaction.Offset),
@@ -87,7 +93,7 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
     private DateTime GetDateTime(DateTimeOffset dateTime)
     {
         if (userOffset == null)
-            return dateTime.LocalDateTime;
+            return dateTime.DateTime;
 
         return dateTime.UtcDateTime.AddMinutes(userOffset.Value);
     }
@@ -106,6 +112,19 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
         }
 
         return offSetReadable;
+    }
+
+    private static void ApplyStyles(IXLWorksheet worksheet, int row, int column, TransactionPropertyName prop)
+    {
+        switch (prop)
+        {
+            case TransactionPropertyName.Amount:
+                worksheet.Cell(row, column).Style.NumberFormat.Format = "$0.00";
+                break;
+            case TransactionPropertyName.TransactionDate:
+                worksheet.Cell(row, column).Style.NumberFormat.Format = "dd.mm.yyyy hh:mm:ss";
+                break;
+        }
     }
 
     public MemoryStream WorkbookAsAMemoryStream()

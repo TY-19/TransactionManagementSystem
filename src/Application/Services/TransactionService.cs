@@ -6,7 +6,7 @@ using TMS.Application.Commands.Transaction.AddUpdateTransaction;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Application.Models.Dtos;
-using TMS.Application.Queries.TransactionClient.GetAllTransactionsClients;
+using TMS.Application.Queries.TransactionClient.GetTransactionsClients;
 
 namespace TMS.Application.Services;
 
@@ -64,17 +64,51 @@ public class TransactionService(
         return new CustomResponse() { Succeeded = true };
     }
 
-    public async Task<MemoryStream> ExportToExcelAsync(string fields, int? userOffset)
+    public async Task<MemoryStream> ExportToExcelAsync(string fields, string sortBy, bool sortAsc, int? userOffset,
+        DateFilterParameters? startDate, DateFilterParameters? endDate)
     {
         var requestedColumns = propertyManager.GetPropertiesTypes(fields.Split(','));
+        var sortColumn = propertyManager.GetProperty(sortBy) ?? requestedColumns[0];
 
         IEnumerable<TransactionClientExportDto> transactions = await mediator.Send(
-            new GetAllTransactionsClientsQuery()
+            new GetTransactionsClientsQuery()
             {
-                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns)
+                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns),
+                SortBy = propertyManager.GetDatabaseColumnName(sortColumn)!,
+                SortAsc = sortAsc,
+                UserTimeZoneOffset = GetFormattedOffset(userOffset),
+                StartDate = startDate,
+                EndDate = endDate
             });
 
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedColumns, userOffset);
+    }
+
+    public string GetExcelFileName(int? userOffset, DateFilterParameters? startDate,
+        DateFilterParameters? endDate)
+    {
+        string name = "transactions";
+        if (startDate != null && endDate != null)
+            name += $"_{startDate.Year}_{startDate.Month}_{startDate.Day}-{endDate.Year}_{endDate.Month}_{endDate.Day}";
+        else if (startDate != null)
+            name += $"_after_{startDate.Year}_{startDate.Month}_{startDate.Day}";
+        else if (endDate != null)
+            name += $"_before_{endDate.Year}_{endDate.Month}_{endDate.Day}";
+
+        if (userOffset == null) name += "_clients_time";
+        else name += $"_UTC{GetFormattedOffset(userOffset)}";
+
+        name += ".xlsx";
+        return name;
+    }
+
+    private static string? GetFormattedOffset(int? offset)
+    {
+        if (offset == null) return null;
+
+        char sign = offset >= 0 ? '+' : '-';
+        offset = Math.Abs(Math.Max(Math.Min(offset.Value, 720), -720));
+        return $"{sign}{(offset / 60):D2}:{(offset % 60):D2}";
     }
 }
 

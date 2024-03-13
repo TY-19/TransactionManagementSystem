@@ -19,14 +19,14 @@ public class FreeIpService(
 
     public async Task<int> GetTimeZoneOffsetInMinutesAsync(string? ipv4)
     {
-        if (!IsValidIpv4(ipv4, out bool useServerIpInstead))
+        if (!IsValidIpv4(ipv4, out bool isLocalNetwork))
             throw new ArgumentException("Ip is not in valid format", nameof(ipv4));
 
-        // If request was from local network then use application server ip
-        // to determine a user time zone.
-        // There are no need to explicitly specify server ip as it will be
-        // automatically determined by an external api based on the request.
-        if (useServerIpInstead) ipv4 = "";
+        // If the request originated from the local network, the application server's IP is used
+        // to determine the user's time zone.
+        // There's no need to explicitly specify the server IP, as it will be automatically determined
+        // by an external API based on the request.
+        if (isLocalNetwork) ipv4 = "";
 
         string urlFull = $"{BaseURL}/{ipv4}";
         var response = await httpClient.GetAsync(urlFull);
@@ -36,15 +36,16 @@ public class FreeIpService(
         return CalculateTimeZoneOffset(deserializedResponse);
     }
 
-    private static bool IsValidIpv4(string? ipv4, out bool useServerIpInstead)
+    private static bool IsValidIpv4(string? ipv4, out bool isLocalNetwork)
     {
-        useServerIpInstead = false;
+        isLocalNetwork = false;
         if (ipv4 == null)
             return false;
 
         string[] segments = ipv4.Split('.');
         if (segments.Length != 4)
             return false;
+
         int[] values = new int[4];
 
         for (int i = 0; i < 4; i++)
@@ -53,23 +54,21 @@ public class FreeIpService(
             if (values[i] < 0 || values[i] > 255)
                 return false;
         }
-        useServerIpInstead = IsLocalNetwork(values);
+        isLocalNetwork = IsLocalNetwork(values);
         return true;
     }
 
     private static bool IsLocalNetwork(int[] values)
     {
-        // IP addresses in the following range cannot be resolved by the external API.
-        // 0.0.0.0 - 0.255.255.255 - indicating that the host is on the same network (local API call).
-        // The following IP address spaces are reserved for private internets: 
-        // 10.0.0.0 – 10.255.255.255
-        // 172.16.0.0 – 172.31.255.255
-        // 192.168.0.0 – 192.168.255.255
-        // See details: https://datatracker.ietf.org/doc/html/rfc1918#section-3
-
-        // Due to the fact that in this case our API receives the request from the local network,
-        // it seems appropriate to use the server IP to determine the time zone offset.
-
+        // IP addresses in the following ranges cannot be resolved by the external API:
+        // - 0.0.0.0 - 0.255.255.255, indicating that the host is on the same network (local API call).
+        // - 10.0.0.0 – 10.255.255.255
+        // - 172.16.0.0 – 172.31.255.255
+        // - 192.168.0.0 – 192.168.255.255
+        // These ranges are reserved for private internets.
+        // For more details, refer to: https://datatracker.ietf.org/doc/html/rfc1918#section-3
+        // In this case, since our API receives the request from the local network,
+        // it's appropriate to use the server's IP to determine the time zone offset.
         return values[0] == 0
             || values[0] == 10
             || (values[0] == 172 && values[1] >= 16 && values[1] <= 31)
