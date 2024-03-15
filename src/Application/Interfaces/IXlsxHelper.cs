@@ -1,10 +1,12 @@
-﻿using TMS.Application.Models.Dtos;
+﻿using TMS.Application.Models;
 using TMS.Domain.Enums;
 
 namespace TMS.Application.Interfaces;
 
 public interface IXlsxHelper
 {
-    MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionClientExportDto> transactions,
-        List<TransactionPropertyName> columns, int? userOffset);
+    string ExcelMimeType { get; }
+    string FileExtension { get; }
+    MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionExportDto> transactions,
+        List<TransactionPropertyName> columns, CancellationToken cancellationToken);
 }

@@ -22,10 +22,11 @@ public static class ApplicationExtensions
         });
 
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<ITimeZoneService, TimeZoneService>();
         services.AddScoped<IIpService, FreeIpService>();
-        services.AddScoped<ICsvParser, CsvParser>();
+        services.AddScoped<ITimeZoneHelper, TimeZoneHelper>();
         services.AddScoped<IXlsxHelper, XlsxHelper>();
-        services.AddScoped<ITimeZoneServiceFactory, TimeZoneServiceFactory>();
+        services.AddScoped<ICsvParser, CsvParser>();
         services.AddSingleton<ITransactionPropertyManager, TransactionPropertyManager>();
 
         return services;

@@ -1,6 +1,6 @@
-﻿namespace TMS.Application.Models.Dtos;
+﻿namespace TMS.Application.Models;
 
-public class TransactionClientExportDto
+public class TransactionExportDto
 {
     public string? TransactionId { get; set; } = null!;
     public string? Name { get; set; } = null!;

@@ -1,34 +1,35 @@
 ﻿using ClosedXML.Excel;
-using DocumentFormat.OpenXml.Spreadsheet;
-using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Logging;
 using TMS.Application.Interfaces;
-using TMS.Application.Models.Dtos;
+using TMS.Application.Models;
 using TMS.Domain.Enums;
 
 namespace TMS.Application.Helpers;
 
-public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelper
+public class XlsxHelper(
+    ITransactionPropertyManager propertyManager
+    ) : IXlsxHelper
 {
-    private List<Action<TransactionClientExportDto, int>> actions = null!;
+    private List<Action<TransactionExportDto, int>> actions = null!;
     private XLWorkbook workbook = null!;
     private IXLWorksheet worksheet = null!;
     private int columnNumber = 1;
-    private int? userOffset;
-    private string? offSetReadable;
 
-    public bool InsertTimeZoneColumn { get; set; }
-    public MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionClientExportDto> transactions,
-        List<TransactionPropertyName> columns, int? userOffset)
+    public string ExcelMimeType => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    public string FileExtension => ".xlsx";
+    public MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionExportDto> transactions,
+        List<TransactionPropertyName> columns, CancellationToken cancellationToken)
     {
         ClearState();
-        this.userOffset = userOffset;
         for (int i = 0; i < columns.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             WriteColumnHeader(columnNumber, columns[i]);
             SetPropertyForTheColumn(columns[i]);
             columnNumber++;
         }
-        WriteTransactions(transactions);
+        WriteTransactions(transactions, cancellationToken);
         worksheet.Columns().AdjustToContents();
         return WorkbookAsAMemoryStream();
     }
@@ -38,8 +39,6 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
         workbook = new XLWorkbook();
         worksheet = workbook.Worksheets.Add("Transactions");
         columnNumber = 1;
-        userOffset = null;
-        offSetReadable = null;
     }
     private void WriteColumnHeader(int columnNumber, TransactionPropertyName propertyName)
     {
@@ -50,11 +49,13 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
         actions.Add(GetWritingAction(columnNumber, propertyName));
     }
 
-    private void WriteTransactions(IEnumerable<TransactionClientExportDto> transactions)
+    private void WriteTransactions(IEnumerable<TransactionExportDto> transactions, CancellationToken cancellationToken)
     {
         int row = 2;
         foreach (var transaction in transactions)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             int col = 0;
             while (col < columnNumber - 1)
             {
@@ -65,7 +66,7 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
         }
     }
 
-    private Action<TransactionClientExportDto, int> GetWritingAction(int column, TransactionPropertyName prop)
+    private Action<TransactionExportDto, int> GetWritingAction(int column, TransactionPropertyName prop)
     {
         return (t, row) =>
         {
@@ -73,7 +74,7 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
             ApplyStyles(worksheet, row, column, prop);
         };
     }
-    private XLCellValue GetProperty(TransactionClientExportDto transaction, TransactionPropertyName prop)
+    private static XLCellValue GetProperty(TransactionExportDto transaction, TransactionPropertyName prop)
     {
         return prop switch
         {
@@ -81,37 +82,13 @@ public class XlsxHelper(ITransactionPropertyManager propertyManager) : IXlsxHelp
             TransactionPropertyName.Name => transaction.Name,
             TransactionPropertyName.Email => transaction.Email,
             TransactionPropertyName.Amount => transaction.Amount,
-            TransactionPropertyName.TransactionDate => transaction.TransactionDate == null ? ""
-                : GetDateTime(transaction.TransactionDate.Value),
-            TransactionPropertyName.Offset => GetOffset(transaction.Offset),
+            TransactionPropertyName.TransactionDate => transaction.TransactionDate.HasValue
+                ? transaction.TransactionDate.Value.DateTime : "",
+            TransactionPropertyName.Offset => transaction.Offset,
             TransactionPropertyName.Latitude => transaction.Latitude,
             TransactionPropertyName.Longitude => transaction.Longitude,
             _ => "",
         };
-    }
-
-    private DateTime GetDateTime(DateTimeOffset dateTime)
-    {
-        if (userOffset == null)
-            return dateTime.DateTime;
-
-        return dateTime.UtcDateTime.AddMinutes(userOffset.Value);
-    }
-
-    private string GetOffset(string? offset)
-    {
-        if (userOffset == null)
-            return offset ?? string.Empty;
-
-        if (offSetReadable == null)
-        {
-            char sign = userOffset >= 0 ? '+' : '-';
-            int hours = userOffset.Value / 60;
-            int minutes = userOffset.Value % 60;
-            offSetReadable = $"{sign}{hours:D2}:{minutes:D2}";
-        }
-
-        return offSetReadable;
     }
 
     private static void ApplyStyles(IXLWorksheet worksheet, int row, int column, TransactionPropertyName prop)

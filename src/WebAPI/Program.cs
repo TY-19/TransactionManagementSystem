@@ -7,6 +7,7 @@ using System.Reflection;
 using TMS.Application;
 using TMS.Application.Interfaces;
 using TMS.Infrastructure.Data;
+using TMS.WebAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,12 +33,14 @@ builder.Services.AddSerilog(options =>
                 TableName = "LogEvents",
                 AutoCreateSqlTable = true,
             })
-        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Debug);
+        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information);
 });
 
 builder.Services.AddHttpClient();
 
 builder.Services.AddControllers();
+
+builder.Services.AddExceptionHandler<ExceptionHandler>();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -49,6 +52,7 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseSerilogRequestLogging();
+app.UseExceptionHandler(_ => { });
 
 using (var scope = app.Services.CreateScope())
 {

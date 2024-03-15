@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using TMS.Application.Interfaces;
+using TMS.Application.Models;
 
 namespace TMS.Application.Services;
 
@@ -14,26 +14,16 @@ public class FreeIpService(
 {
     private readonly HttpClient httpClient = httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-    private string BaseURL => configuration.GetSection("FreeIp")["BaseUrl"]
-        ?? "https://freeipapi.com/api/json";
+    private string BaseURL => configuration.GetSection("FreeIp")["BaseUrl"] ?? "https://freeipapi.com/api/json";
 
-    public async Task<int> GetTimeZoneOffsetInMinutesAsync(string? ipv4)
+    public async Task<CustomResponse<string>> GetIpAsync(string? ipv4, CancellationToken cancellationToken)
     {
         if (!IsValidIpv4(ipv4, out bool isLocalNetwork))
-            throw new ArgumentException("Ip is not in valid format", nameof(ipv4));
-
-        // If the request originated from the local network, the application server's IP is used
-        // to determine the user's time zone.
-        // There's no need to explicitly specify the server IP, as it will be automatically determined
-        // by an external API based on the request.
-        if (isLocalNetwork) ipv4 = "";
-
-        string urlFull = $"{BaseURL}/{ipv4}";
-        var response = await httpClient.GetAsync(urlFull);
-
-        using var stream = response.Content.ReadAsStream();
-        var deserializedResponse = JsonSerializer.Deserialize<FreeIpResponse>(stream, jsonSerializerOptions);
-        return CalculateTimeZoneOffset(deserializedResponse);
+            return new CustomResponse<string>(true) { Payload = ipv4 };
+        else if (isLocalNetwork)
+            return await GetServerIpAsync(cancellationToken);
+        else
+            return new CustomResponse<string>(false, "IP cannot be determined.");
     }
 
     private static bool IsValidIpv4(string? ipv4, out bool isLocalNetwork)
@@ -75,41 +65,42 @@ public class FreeIpService(
             || (values[0] == 192 && values[1] == 168);
     }
 
-    private int CalculateTimeZoneOffset(FreeIpResponse? response)
+    private async Task<CustomResponse<string>> GetServerIpAsync(CancellationToken cancellationToken)
     {
-        Match match = null!;
-        if (response != null && !string.IsNullOrEmpty(response.TimeZone))
+        string urlFull = $"{BaseURL}/";
+        logger.LogDebug("Call {url}", urlFull);
+
+        var response = await httpClient.GetAsync(urlFull, cancellationToken);
+        if (!response.IsSuccessStatusCode)
         {
-            string pattern = @"([+-])(\d{2}):(\d{2})";
-            match = Regex.Match(response.TimeZone, pattern);
+            logger.LogError("FreeIp return status code {statusCode}.\r\nRequest url: {url}." +
+                "\r\nResponse: {response}", response.StatusCode, urlFull, response);
+            return new CustomResponse<string>(false, "Request to the external API has failed.");
         }
 
-        if (match == null || !match.Success
-            || !int.TryParse(match.Groups[2].Value, out int hours)
-            || !int.TryParse(match.Groups[3].Value, out int minutes))
+        try
         {
-            logger.LogError("Response of external API does not contain valid offset: {response}", response);
-            throw new ArgumentException("Response of external API is invalid");
-        }
+            using var stream = response.Content.ReadAsStream(cancellationToken);
+            var deserializedResponse = JsonSerializer.Deserialize<FreeIpResponse>(stream, jsonSerializerOptions);
+            if (deserializedResponse == null)
+                return new CustomResponse<string>(false, "Cannot process the external API response");
 
-        var totalMinutes = hours * 60 + minutes;
-        return match.Groups[1].Value == "-" ? -totalMinutes : totalMinutes;
+            return new CustomResponse<string>(true) { Payload = deserializedResponse.IpAddress };
+        }
+        catch (TaskCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error has occurred deserializing API response.");
+            return new CustomResponse<string>(false, "Cannot process the external API response");
+        }
     }
 
     private sealed class FreeIpResponse
     {
         public int IpVersion { get; set; } = 0;
-        public string IpAddress { get; set; } = string.Empty;
-        public decimal Latitude { get; set; } = 0m;
-        public decimal Longitude { get; set; } = 0m;
-        public string CountryName { get; set; } = string.Empty;
-        public string CountryCode { get; set; } = string.Empty;
-        public string TimeZone { get; set; } = string.Empty;
-        public string ZipCode { get; set; } = string.Empty;
-        public string CityName { get; set; } = string.Empty;
-        public string RegionName { get; set; } = string.Empty;
-        public string Continent { get; set; } = string.Empty;
-        public string ContinentCode { get; set; } = string.Empty;
-        public bool IsProxy { get; set; } = false;
+        public string IpAddress { get; set; } = null!;
     }
 }

@@ -1,6 +1,8 @@
-﻿namespace TMS.Application.Interfaces;
+﻿using TMS.Application.Models;
+
+namespace TMS.Application.Interfaces;
 
 public interface IIpService
 {
-    Task<int> GetTimeZoneOffsetInMinutesAsync(string? ipv4);
+    Task<CustomResponse<string>> GetIpAsync(string? ipv4, CancellationToken cancellationToken);
 }

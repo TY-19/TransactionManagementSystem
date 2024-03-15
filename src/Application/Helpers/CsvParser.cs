@@ -2,32 +2,33 @@
 using System.Globalization;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
-using TMS.Application.Models.Dtos;
 
 namespace TMS.Application.Helpers;
 
-public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvParser
+public class CsvParser(
+    ITimeZoneService timeZoneService,
+    ITimeZoneHelper timeZoneHelper
+    ) : ICsvParser
 {
-    private readonly ITimeZoneService timeZoneService = timeZoneServiceFactory.GetTimeZoneService();
     private List<string> Errors = [];
 
-    public async Task<CustomResponse<TransactionDto>> TryParseLineAsync(string? cssLine)
+    public async Task<CustomResponse<TransactionImportDto>> TryParseLineAsync(string? cssLine, CancellationToken cancellationToken)
     {
         Errors = [];
         if (cssLine.IsNullOrEmpty())
         {
             Errors.Add("String is empty");
-            return new CustomResponse<TransactionDto>() { Succeeded = false, Errors = Errors };
+            return new CustomResponse<TransactionImportDto>() { Succeeded = false, Errors = Errors };
         }
 
         string[] values = cssLine!.Split(',');
         if (values.Length != 7)
         {
             Errors.Add("String contains incorrect number of arguments");
-            return new CustomResponse<TransactionDto>() { Succeeded = false, Errors = Errors };
+            return new CustomResponse<TransactionImportDto>() { Succeeded = false, Errors = Errors };
         }
 
-        TransactionDto transaction = new()
+        TransactionImportDto transaction = new()
         {
             TransactionId = ParseTransactionId(values[0]) ?? "",
             Name = ParseName(values[1]) ?? "",
@@ -37,11 +38,11 @@ public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvPar
             Longitude = ParseLongitude(values[6]) ?? 0m
         };
         transaction.TransactionDate = await ParseDateAsync(values[4],
-            transaction.Latitude, transaction.Longitude) ?? DateTimeOffset.MinValue;
+            transaction.Latitude, transaction.Longitude, cancellationToken) ?? DateTimeOffset.MinValue;
 
         return Errors.Count == 0
-            ? new CustomResponse<TransactionDto>() { Succeeded = true, Payload = transaction }
-            : new CustomResponse<TransactionDto>() { Succeeded = false, Errors = Errors };
+            ? new CustomResponse<TransactionImportDto>() { Succeeded = true, Payload = transaction }
+            : new CustomResponse<TransactionImportDto>() { Succeeded = false, Errors = Errors };
     }
 
     private string? ParseTransactionId(string toParse)
@@ -155,7 +156,8 @@ public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvPar
         }
     }
 
-    private async Task<DateTimeOffset?> ParseDateAsync(string toParse, decimal? latitude, decimal? longitude)
+    private async Task<DateTimeOffset?> ParseDateAsync(string toParse, decimal? latitude,
+        decimal? longitude, CancellationToken cancellationToken)
     {
         if (latitude == null || longitude == null)
         {
@@ -179,21 +181,27 @@ public class CsvParser(ITimeZoneServiceFactory timeZoneServiceFactory) : ICsvPar
             return null;
         }
 
-        long timestamp = (long)(local - DateTime.UnixEpoch).TotalSeconds;
-
-        int offsetInMinutes;
         try
         {
-            offsetInMinutes = await timeZoneService.GetTimeZoneOffsetInMinutesAsync(
-                latitude.Value, longitude.Value, timestamp);
+            var timeZoneDetails = await timeZoneService.GetTimeZoneByCoordinatesAsync(
+                latitude.Value, longitude.Value, cancellationToken);
+
+            if (timeZoneDetails.Succeeded && timeZoneDetails.Payload != null)
+            {
+                int offsetInSeconds = timeZoneHelper.GetOffsetInSeconds(local, timeZoneDetails.Payload);
+                return new DateTimeOffset(local, TimeSpan.FromSeconds(offsetInSeconds));
+            }
+            else
+            {
+                Errors.Add(GetError("transaction_date", toParse, "External API cannot resolve a timezone"));
+                return null;
+            }
         }
         catch (Exception ex)
         {
             Errors.Add(GetError("transaction_date", toParse, $"Error happens while determining time zone. Error details: {ex.Message}"));
             return null;
         }
-
-        return new DateTimeOffset(local, TimeSpan.FromMinutes(offsetInMinutes));
     }
 
     private static string GetError(string propertyName, string property, string? message = null)
