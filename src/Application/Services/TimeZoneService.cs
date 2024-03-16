@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
@@ -15,20 +16,36 @@ public class TimeZoneService(
 {
     private readonly HttpClient httpClient = httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
-    private string BaseUrl => configuration.GetSection("TimeApi")["BaseUrl"]
-        ?? "https://timeapi.io/api/TimeZone";
+    private string BaseUrl => configuration.GetSection("TimeApi")["BaseUrl"] ?? "https://timeapi.io/api/TimeZone";
+
+    /// <inheritdoc cref="ITimeZoneService.GetTimeZone(string?, bool, string?, CancellationToken)"/>
+    public async Task<CustomResponse<TimeZoneDetails>> GetTimeZone(string? IanaName, bool useUserTimeZone,
+        string? ipv4, CancellationToken cancellationToken)
+    {
+        if (IanaName != null)
+            return await GetTimeZoneByIanaNameAsync(IanaName, cancellationToken);
+        
+        if (useUserTimeZone)
+            return await GetTimeZoneByIpAsync(ipv4, cancellationToken);
+        
+        return new CustomResponse<TimeZoneDetails>(true);
+    }
+
+    /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByIpAsync(string?, CancellationToken)"/>
     public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByIpAsync(string? ip, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/ip?ipAddress={ip}";
         return await CallExternalApiAsync(urlFull, cancellationToken);
     }
 
+    /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByCoordinatesAsync(decimal, decimal, CancellationToken)(string?, CancellationToken)"/>
     public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByCoordinatesAsync(decimal latitude, decimal longitude, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/coordinate?latitude={latitude.ToString(CultureInfo.InvariantCulture)}&longitude={longitude.ToString(CultureInfo.InvariantCulture)}";
         return await CallExternalApiAsync(urlFull, cancellationToken);
     }
 
+    /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByIanaNameAsync(string, CancellationToken)"/>
     public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByIanaNameAsync(string ianaName, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/zone?timeZone={ianaName.Replace(" ", "")}";
@@ -41,6 +58,9 @@ public class TimeZoneService(
         try
         {
             response = await httpClient.GetAsync(url, cancellationToken);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                return new CustomResponse<TimeZoneDetails>(false, "Time zone was not found.");
+                
             response.EnsureSuccessStatusCode();
         }
         catch (TaskCanceledException)

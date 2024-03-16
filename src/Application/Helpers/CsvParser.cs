@@ -12,7 +12,7 @@ public class CsvParser(
 {
     private List<string> Errors = [];
 
-    public async Task<CustomResponse<TransactionImportDto>> TryParseLineAsync(string? cssLine, CancellationToken cancellationToken)
+    public async Task<CustomResponse<TransactionImportDto>> ParseLineAsync(string? cssLine, CancellationToken cancellationToken)
     {
         Errors = [];
         if (cssLine.IsNullOrEmpty())
@@ -22,6 +22,9 @@ public class CsvParser(
         }
 
         string[] values = cssLine!.Split(',');
+        if(values.Length > 0 && IsHeader(values[0]))
+            return new CustomResponse<TransactionImportDto>() { Succeeded = false };
+
         if (values.Length != 7)
         {
             Errors.Add("String contains incorrect number of arguments");
@@ -43,6 +46,11 @@ public class CsvParser(
         return Errors.Count == 0
             ? new CustomResponse<TransactionImportDto>() { Succeeded = true, Payload = transaction }
             : new CustomResponse<TransactionImportDto>() { Succeeded = false, Errors = Errors };
+    }
+
+    private static bool IsHeader(string toCheck)
+    {
+        return toCheck.Replace(" ", "").Replace("_", "").Equals("transactionid", StringComparison.CurrentCultureIgnoreCase);
     }
 
     private string? ParseTransactionId(string toParse)

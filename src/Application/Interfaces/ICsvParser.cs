@@ -4,5 +4,5 @@ namespace TMS.Application.Interfaces;
 
 public interface ICsvParser
 {
-    Task<CustomResponse<TransactionImportDto>> TryParseLineAsync(string? cssLine, CancellationToken cancellationToken);
+    Task<CustomResponse<TransactionImportDto>> ParseLineAsync(string? cssLine, CancellationToken cancellationToken);
 }

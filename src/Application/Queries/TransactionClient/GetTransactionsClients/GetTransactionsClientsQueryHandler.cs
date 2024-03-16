@@ -1,7 +1,6 @@
 ﻿using Dapper;
 using MediatR;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
 using System.Text;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
@@ -18,18 +17,18 @@ public class GetTransactionsClientsQueryHandler(
     };
     public async Task<IEnumerable<TransactionExportDto>> Handle(GetTransactionsClientsQuery request, CancellationToken cancellationToken)
     {
-        var sql = @$"SELECT {GetRequestedColumnNames(request.RequestedColumns)}
+        var sql = @$"SELECT {BuildColumns(request.RequestedColumns)}
             FROM Transactions
             JOIN Clients ON Transactions.ClientId = Clients.Id
-            {GetFilterByTimeInterval(request)}
-            ORDER BY {request.SortBy} {(request.SortAsc ? "ASC" : "DESC")}";
+            {BuildWhereClause(request)}
+            {BuildOrderByClause(request.SortBy, request.SortAsc)}";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
 
         return await dbConnection.QueryAsync<TransactionExportDto>(sql);
     }
 
-    private string GetRequestedColumnNames(List<string> requestedColumns)
+    private string BuildColumns(List<string> requestedColumns)
     {
         StringBuilder sb = new();
         foreach (var column in requestedColumns)
@@ -47,40 +46,36 @@ public class GetTransactionsClientsQueryHandler(
             sb.Replace(rule.Key, rule.Value);
     }
 
-    private static string GetFilterByTimeInterval(GetTransactionsClientsQuery query)
+    private static string BuildWhereClause(GetTransactionsClientsQuery query)
     {
         if (query.StartDate == null && query.EndDate == null)
             return "";
 
-        if (query.TimeZone == null)
-        {
-            string composite = "";
-            if (query.StartDate != null && query.EndDate != null)
-                composite = " AND ";
+        return query.TimeZone == null
+            ? FilterByClientDate(query.StartDate, query.EndDate)
+            : FilterByUserTimeZone(query.TimeZone, query.StartDate, query.EndDate);
+    }
+    private static string FilterByClientDate(DateFilterParameters? startDate, DateFilterParameters? endDate)
+    {
+        string composite = "";
+        if (startDate != null && endDate != null)
+            composite = " AND ";
 
-            string startFilter = query.StartDate == null ? ""
-                : FilterByClientDate(query.StartDate.Year, query.StartDate.Month, query.StartDate.Day, true);
+        string startFilter = startDate == null ? "" 
+            : GetFilterByClientDate(startDate.Year, startDate.Month, startDate.Day, true);
+        string endFilter = endDate == null ? ""
+            : GetFilterByClientDate(endDate.Year, endDate.Month, endDate.Day, false);
 
-            string endFilter = query.EndDate == null ? ""
-                : FilterByClientDate(query.EndDate.Year,
-                    query.EndDate.Month, query.EndDate.Day, false);
-
-            return $"WHERE {startFilter}{composite}{endFilter}";
-        }
-        else
-        {
-            return FilterByUserTimeZone(query.TimeZone, query.StartDate, query.EndDate);
-        }
+        return $"WHERE {startFilter}{composite}{endFilter}";
     }
 
-    private static string FilterByClientDate(int year, int month, int day, bool isStartDate)
+    private static string GetFilterByClientDate(int year, int month, int day, bool isStartDate)
     {
         string sign = isStartDate ? ">" : "<";
         return @$"(DATEPART(YYYY, TransactionDate) {sign} {year}
             OR (DATEPART(YYYY, TransactionDate) = {year} AND DATEPART(MM, TransactionDate) {sign} {month})
             OR (DATEPART(YYYY, TransactionDate) = {year} AND DATEPART(MM, TransactionDate) = {month} AND DATEPART(DD, TransactionDate) {sign}= {day}))";
     }
-
 
     private static string FilterByUserTimeZone(TimeZoneDetails timeZone, DateFilterParameters? startDate, DateFilterParameters? endDate)
     {
@@ -91,46 +86,36 @@ public class GetTransactionsClientsQueryHandler(
             : null;
 
         if (startDate != null && endDate != null)
-        {
-            return GetFilterByStartAndEndDateInUserTimeZone(startDate, endDate,
-                standardOffset, dstOffset);
-        }
-        else if (startDate != null)
-        {
-            return GetFilterByStartOrEndDateInUserTimeZone(startDate.Year, startDate.Month,
-                startDate.Day, standardOffset, dstOffset, true);
-        }
-        else if (endDate != null)
-        {
-            return GetFilterByStartOrEndDateInUserTimeZone(endDate.Year, endDate.Month,
-                endDate.Day, standardOffset, dstOffset, false);
-        }
-        else
-        {
-            return string.Empty;
-        }
+            return GetFilterWithBothLimitsInUserTimeZone(startDate, endDate, standardOffset, dstOffset);
+        
+        if (startDate != null)
+            return GetFilterWithEitherLimitInUserTimeZone(startDate.Year, startDate.Month, startDate.Day, standardOffset, dstOffset, true);
+        
+        if (endDate != null)
+            return GetFilterWithEitherLimitInUserTimeZone(endDate.Year, endDate.Month, endDate.Day, standardOffset, dstOffset, false);
+
+        return string.Empty;
     }
 
     private static string GetReadableOffset(int offset)
     {
         char offsetSign = offset >= 0 ? '+' : '-';
-        return $"{offsetSign}{Math.Abs(offset / 3600):D2}:{Math.Abs(offset % 60):D2}";
+        return $"{offsetSign}{Math.Abs(offset / 3600):D2}:{Math.Abs((offset % 3600) / 60):D2}";
     }
 
-    private static string GetFilterByStartOrEndDateInUserTimeZone(int year, int month, int day, string offset,
+    private static string GetFilterWithEitherLimitInUserTimeZone(int year, int month, int day, string offset,
         string? dstOffset, bool isStartDate)
     {
         string sign = isStartDate ? ">=" : "<=";
         string time = isStartDate ? "00:00:00" : "23:59:59";
-        string clause = $"WHERE TransactionDate {sign} '{year}-{month}-{day} {time} {offset}' ";
 
-        if (!string.IsNullOrEmpty(dstOffset))
-            clause += $"OR TransactionDate {sign} '{year}-{month}-{day} {time} {dstOffset}')";
+        if (!string.IsNullOrEmpty(dstOffset) && isStartDate)
+            offset = dstOffset;
 
-        return clause;
+        return $"WHERE TransactionDate {sign} '{year}-{month}-{day} {time} {offset}' ";
     }
 
-    private static string GetFilterByStartAndEndDateInUserTimeZone(DateFilterParameters startDate,
+    private static string GetFilterWithBothLimitsInUserTimeZone(DateFilterParameters startDate,
         DateFilterParameters endDate, string offset, string? dstOffset)
     {
         string greaterOrEqual = ">=";
@@ -139,14 +124,17 @@ public class GetTransactionsClientsQueryHandler(
         string endTime = "23:59:59";
 
         if (string.IsNullOrEmpty(dstOffset))
-            return @$"WHERE TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {offset}'
-                    AND TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {offset}'";
-        else
-        {
-            return @$"WHERE ((TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {offset}'
-                    OR TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {dstOffset}')
-                    AND (TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {offset}'
-                    OR TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {dstOffset}'))";
-        }
+            dstOffset = offset;
+            
+        return @$"WHERE TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {dstOffset}'
+                AND TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {offset}'";
+    }
+
+    private static string BuildOrderByClause(string? sortBy, bool sortAsc)
+    {
+        if (sortBy == null)
+            return string.Empty;
+
+        return $"ORDER BY {sortBy} {(sortAsc ? "ASC" : "DESC")}";
     }
 }

@@ -17,6 +17,7 @@ public class XlsxHelper(
 
     public string ExcelMimeType => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     public string FileExtension => ".xlsx";
+    /// <inheritdoc cref="IXlsxHelper.WriteTransactionsIntoXlsxFile(IEnumerable{TransactionExportDto}, List{TransactionPropertyName}, CancellationToken);"/>
     public MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionExportDto> transactions,
         List<TransactionPropertyName> columns, CancellationToken cancellationToken)
     {

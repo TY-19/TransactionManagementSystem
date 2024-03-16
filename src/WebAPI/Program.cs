@@ -1,53 +1,29 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 using Serilog;
-using Serilog.Events;
-using Serilog.Sinks.MSSqlServer;
-using System.Reflection;
 using TMS.Application;
 using TMS.Application.Interfaces;
 using TMS.Infrastructure.Data;
+using TMS.WebAPI.Configuration;
 using TMS.WebAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddJsonFile("timezone-aliases.json", optional: true, reloadOnChange: true);
+
+builder.Services.AddSingleton<IDbConnectionOptions, DbConnectionOptions>();
+builder.Services.AddDbContext<TmsDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString(DbConnectionOptions.DefaultConnectionStringName)));
+
 builder.Services.RegisterApplicationServices();
 
-builder.Services.AddDbContext<TmsDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString(
-            DbConnectionOptions.DefaultConnectionStringName));
-});
-builder.Services.AddSingleton<IDbConnectionOptions, DbConnectionOptions>();
-
-builder.Services.AddSerilog(options =>
-{
-    options
-        .MinimumLevel.Debug()
-        .ReadFrom.Configuration(builder.Configuration)
-        .WriteTo.MSSqlServer(builder.Configuration.GetConnectionString(
-            DbConnectionOptions.DefaultConnectionStringName),
-            restrictedToMinimumLevel: LogEventLevel.Warning,
-            sinkOptions: new MSSqlServerSinkOptions()
-            {
-                TableName = "LogEvents",
-                AutoCreateSqlTable = true,
-            })
-        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information);
-});
-
-builder.Services.AddHttpClient();
+builder.Services.AddSerilog(new SerilogConfigureOptions(builder.Configuration).Configure);
 
 builder.Services.AddControllers();
 
 builder.Services.AddExceptionHandler<ExceptionHandler>();
 
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Transaction Management System", Version = "v1" });
-    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-});
+builder.Services.AddSwaggerGen();
+builder.Services.ConfigureOptions<SwaggerConfigureOptions>();
 
 var app = builder.Build();
 
@@ -58,9 +34,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
     if (context.Database.IsRelational() && context.Database.GetPendingMigrations().Any())
-    {
         await context.Database.MigrateAsync();
-    }
 }
 
 if (app.Environment.IsDevelopment())

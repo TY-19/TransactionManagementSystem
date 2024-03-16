@@ -6,6 +6,7 @@ using TMS.Application.Commands.Transaction.AddUpdateTransaction;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Application.Queries.TransactionClient.GetTransactionsClients;
+using TMS.Domain.Enums;
 
 namespace TMS.Application.Services;
 
@@ -20,18 +21,22 @@ public class TransactionService(
 {
     public async Task<CustomResponse> ImportFromCsvAsync(Stream stream, CancellationToken cancellationToken)
     {
+        CustomResponse response = new();
         using var reader = new StreamReader(stream);
+        int row = 0;
         while (!reader.EndOfStream)
         {
-            var line = await reader.ReadLineAsync(cancellationToken);
-            var parsedResponse = await csvParser.TryParseLineAsync(line, cancellationToken);
-            var transaction = parsedResponse.Payload;
-            if (!parsedResponse.Succeeded || transaction == null)
+            row++;
+            string? line = await reader.ReadLineAsync(cancellationToken);
+            var parsedResponse = await csvParser.ParseLineAsync(line, cancellationToken);
+            if (!parsedResponse.Succeeded || parsedResponse.Payload == null)
             {
                 logger.LogWarning("Parsing has failed with message: {message}. Errors {@errors}", parsedResponse.Message, parsedResponse.Errors);
+                response.Errors.AddRange(parsedResponse.Errors);
                 continue;
             }
 
+            TransactionImportDto transaction = parsedResponse.Payload;
             try
             {
                 await mediator.Send(new AddUpdateClientCommand()
@@ -64,18 +69,19 @@ public class TransactionService(
         return new CustomResponse() { Succeeded = true };
     }
 
-    public async Task<MemoryStream> ExportToExcelAsync(string columns, string sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
-        DateFilterParameters? startDate, DateFilterParameters? endDate, CancellationToken cancellationToken)
+    public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
+        TimeZoneDetails? timeZoneDetails, DateFilterParameters? startDate,
+        DateFilterParameters? endDate, CancellationToken cancellationToken)
     {
         var requestedColumns = propertyManager.GetPropertiesTypes(columns.Split(','));
-        var sortColumn = propertyManager.GetProperty(sortBy) ?? requestedColumns[0];
+        var sortColumn = propertyManager.GetProperty(sortBy);
 
         IEnumerable<TransactionExportDto> transactions = await mediator.Send(
             new GetTransactionsClientsQuery()
             {
-                RequestedColumns = propertyManager.GetDatabaseColumnNames(requestedColumns),
-                SortBy = propertyManager.GetDatabaseColumnName(sortColumn)!,
-                SortAsc = sortAsc,
+                RequestedColumns = GetDatabaseColumnNames(requestedColumns, timeZoneDetails),
+                SortBy = sortColumn == null ? null : propertyManager.GetDatabaseColumnName(sortColumn.Value),
+                SortAsc = sortAsc, 
                 TimeZone = timeZoneDetails,
                 StartDate = startDate,
                 EndDate = endDate
@@ -98,11 +104,25 @@ public class TransactionService(
 
         name += timeZoneDetails == null ? "_clients_time" : $"_{timeZoneDetails.TimeZone}";
         name += xlsxHelper.FileExtension;
-
+        
         return name;
     }
 
     public string GetFileMimeType() => xlsxHelper.ExcelMimeType;
+
+    private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames, TimeZoneDetails? timeZoneDetails)
+    {
+        var dbColumns = propertyManager.GetDatabaseColumnNames(propertyNames);
+        if (timeZoneDetails != null)
+        {
+            // Case when offset will be calculated for the current user time zone.
+            // No need to obtain from the database offset in the clients' time zones.
+            string? offsetName = propertyManager.GetDatabaseColumnName(TransactionPropertyName.Offset);
+            if (offsetName != null && dbColumns.Contains(offsetName))
+                dbColumns.Remove(offsetName);
+        }
+        return dbColumns;
+    }
 
     private IEnumerable<TransactionExportDto> ApplyDstRules(IEnumerable<TransactionExportDto> transactions,
         TimeZoneDetails? userTimeZone, DateFilterParameters? startDate, DateFilterParameters? endDate,
@@ -114,10 +134,11 @@ public class TransactionService(
         DateTimeOffset? start = startDate?.AsOffset();
         if (startDate != null)
             start!.Value.AddMinutes(timeZoneHelper.GetOffsetInSeconds(start.Value, userTimeZone));
+
         DateTimeOffset? end = endDate?.AsOffset();
         if (endDate != null)
             end!.Value.AddMinutes(timeZoneHelper.GetOffsetInSeconds(end.Value, userTimeZone));
-
+        
         List<TransactionExportDto> transactionList = transactions.ToList();
         for (int i = transactionList.Count - 1; i >= 0; i--)
         {
@@ -129,8 +150,7 @@ public class TransactionService(
             transactionList[i].TransactionDate = timeZoneHelper.GetDateTime(
                 transactionList[i].TransactionDate!.Value, userTimeZone);
 
-            if (start.HasValue
-                && (transactionList[i].TransactionDate < start
+            if (start.HasValue && (transactionList[i].TransactionDate < start
                     || transactionList[i].TransactionDate > end))
             {
                 transactionList.RemoveAt(i);
@@ -143,4 +163,3 @@ public class TransactionService(
         return transactionList;
     }
 }
-

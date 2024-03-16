@@ -1,0 +1,13 @@
+{
+  "TimeZoneAliases": {
+    "Europe/Kyiv": "FLE Standard Time",
+    "CET": "Central Europe Standard Time",
+    "MET": "Central Europe Standard Time",
+    "EET": "E. Europe Standard Time",
+    "WET": "W. Europe Standard Time",
+    "Asia/Urumqi": "China Standard Time",
+    "Asia/Kashgar": "China Standard Time",
+    "Pacific/Kanton": "Eastern Standard Time",
+    "Antarctica/Troll": "GMT Standard Time"
+  }
+}

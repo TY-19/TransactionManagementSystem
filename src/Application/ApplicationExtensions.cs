@@ -21,6 +21,8 @@ public static class ApplicationExtensions
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
 
+        services.AddHttpClient();
+
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<ITimeZoneService, TimeZoneService>();
         services.AddScoped<IIpService, FreeIpService>();

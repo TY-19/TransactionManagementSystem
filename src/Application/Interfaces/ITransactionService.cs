@@ -18,8 +18,8 @@ public interface ITransactionService
     /// <param name="startDate">Lower time limit of the transaction date.</param>
     /// <param name="endDate">Upper time limit of the transaction date.</param>
     /// <param name="cancellationToken">A cancellation token that is used to receive notice of cancellation.</param>
-    /// <returns>Xlsx file containing the transactions.</returns>
-    Task<MemoryStream> ExportToExcelAsync(string columns, string sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
+    /// <returns>The .xlsx file containing the transactions.</returns>
+    Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
         DateFilterParameters? startDate, DateFilterParameters? endDate, CancellationToken cancellationToken);
     string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateFilterParameters? startDate,
         DateFilterParameters? endDate);

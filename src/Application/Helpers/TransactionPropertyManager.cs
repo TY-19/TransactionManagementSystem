@@ -46,7 +46,7 @@ public class TransactionPropertyManager : ITransactionPropertyManager
         { "id", TransactionPropertyName.TransactionId }
     };
 
-    public TransactionPropertyName? GetProperty(string name)
+    public TransactionPropertyName? GetProperty(string? name)
     {
         if (string.IsNullOrEmpty(name)) return null;
 

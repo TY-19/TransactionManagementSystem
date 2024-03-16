@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Text.Json;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
@@ -16,8 +17,10 @@ public class FreeIpService(
     private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
     private string BaseURL => configuration.GetSection("FreeIp")["BaseUrl"] ?? "https://freeipapi.com/api/json";
 
-    public async Task<CustomResponse<string>> GetIpAsync(string? ipv4, CancellationToken cancellationToken)
+    /// <inheritdoc cref="IIpService.GetIpAsync(IPAddress?, CancellationToken)"/>
+    public async Task<CustomResponse<string>> GetIpAsync(IPAddress? ip, CancellationToken cancellationToken)
     {
+        string? ipv4 = ip?.MapToIPv4().ToString();
         if (!IsValidIpv4(ipv4, out bool isLocalNetwork))
             return new CustomResponse<string>(true) { Payload = ipv4 };
         else if (isLocalNetwork)

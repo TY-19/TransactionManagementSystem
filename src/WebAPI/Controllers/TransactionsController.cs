@@ -16,7 +16,6 @@ public class TransactionsController(
     ) : ControllerBase
 {
     private const string defaultColumnsToExport = "transactionId,name,email,amount,transactionDate,offset,latitude,longitude";
-    private const string defaultSortBy = "transactionId";
 
     /// <summary>
     ///     Allows importing transactions from a CSV file.
@@ -55,7 +54,7 @@ public class TransactionsController(
     ///     transactionDate, offset, latitude, longitude.
     /// </param>
     /// <param name="sortBy">
-    ///     Name of the column to sort by (transactionId by default). 
+    ///     Name of the column to sort by. 
     ///     Allowed columns (case insensitive): transactionId, name, email, amount,
     ///     transactionDate, offset, latitude, longitude.
     ///     Sorting order is defined by the value of the sortAsc parameter (ascending by default).
@@ -77,7 +76,7 @@ public class TransactionsController(
     ///     If set the date and time values are adjusted to display in the time of this zone.
     ///     Takes precedence over userUserTimeZone flag. When combined with properties that
     ///     require filtering by date the time of the specified time zone is used.
-    ///     Tp get all available time zones see https://timeapi.io/api/TimeZone/AvailableTimeZones
+    ///     To get all available time zones see https://timeapi.io/api/TimeZone/AvailableTimeZones
     /// </param>
     /// <param name="startYear">
     ///     If set, transactions with transactionDate in this year (starting Jan. 1)
@@ -125,15 +124,21 @@ public class TransactionsController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ExportTransactionsToExcel(string columns = defaultColumnsToExport,
-        string sortBy = defaultSortBy, bool sortAsc = true, bool useUserTimeZone = false,
+        string? sortBy = null, bool sortAsc = true, bool useUserTimeZone = false,
         string? timeZoneIanaName = null, int? startYear = null, int? startMonth = null,
         int? startDay = null, int? endYear = null, int? endMonth = null, int? endDay = null)
     {
-        var tzResponse = await ConfigureTimeZoneAsync(timeZoneIanaName, useUserTimeZone);
-        if (!tzResponse.Succeeded)
-            return BadRequest(tzResponse.Message);
+        var ipsResponse = await ipService.GetIpAsync(
+            Request.HttpContext.Connection.RemoteIpAddress, Request.HttpContext.RequestAborted);
+        if (!ipsResponse.Succeeded)
+            return BadRequest(ipsResponse.Message);
 
-        TimeZoneDetails? timeZone = tzResponse.Payload;
+        var tzsResponse = await timeZoneService.GetTimeZone(
+            timeZoneIanaName, useUserTimeZone, ipsResponse.Payload, Request.HttpContext.RequestAborted);
+        if (!tzsResponse.Succeeded)
+            return BadRequest(tzsResponse.Message);
+
+        TimeZoneDetails? timeZone = tzsResponse.Payload;
         DateFilterParameters? startDate = DateFilterParameters.CreateFilterParameters(startYear, startMonth, startDay, true);
         DateFilterParameters? endDate = DateFilterParameters.CreateFilterParameters(endYear, endMonth, endDay, false);
 
@@ -226,36 +231,5 @@ public class TransactionsController(
     {
         return await ExportTransactionsToExcel(useUserTimeZone: true,
             startYear: 2024, startMonth: 01, endYear: 2024, endMonth: 01);
-    }
-
-    private async Task<CustomResponse<TimeZoneDetails?>> ConfigureTimeZoneAsync(string? timeZoneIanaName, bool useUserTimeZone)
-    {
-        if (timeZoneIanaName != null)
-        {
-            var tzsResponse = await timeZoneService.GetTimeZoneByIanaNameAsync(timeZoneIanaName, Request.HttpContext.RequestAborted);
-            if (!tzsResponse.Succeeded)
-                return new CustomResponse<TimeZoneDetails?>(false, "Specified IANA time zone name is invalid.");
-
-            return new CustomResponse<TimeZoneDetails?>(true, tzsResponse.Payload);
-        }
-        else if (useUserTimeZone)
-        {
-            string? requestIp = Request.HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString();
-            var ipsResponse = await ipService.GetIpAsync(requestIp, Request.HttpContext.RequestAborted);
-            if (!ipsResponse.Succeeded)
-                return new CustomResponse<TimeZoneDetails?>(false, ipsResponse.Message ?? "IP cannot be determined.");
-
-            string ipToUse = ipsResponse.Payload!;
-
-            var tzsResponse = await timeZoneService.GetTimeZoneByIpAsync(ipToUse, Request.HttpContext.RequestAborted);
-            if (!tzsResponse.Succeeded)
-                return new CustomResponse<TimeZoneDetails?>(false, "Cannot get timezone for the user IP");
-
-            return new CustomResponse<TimeZoneDetails?>(true, tzsResponse.Payload);
-        }
-        else
-        {
-            return new CustomResponse<TimeZoneDetails?>(true);
-        }
     }
 }

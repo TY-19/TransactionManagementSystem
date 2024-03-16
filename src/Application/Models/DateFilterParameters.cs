@@ -1,7 +1,7 @@
 ﻿namespace TMS.Application.Models;
 
 /// <summary>
-///     A date representation
+///     A date representation designed to store the lower or higher limit of the time interval.
 /// </summary>
 public class DateFilterParameters
 {
@@ -49,6 +49,10 @@ public class DateFilterParameters
             return isStartDate ? min : max;
     }
 
+    /// <summary>
+    ///     Return an offset representation of DateFilterParameters
+    /// </summary>
+    /// <returns>DateFilterParameters as DateTimeOffset</returns>
     public DateTimeOffset AsOffset()
     {
         return isStartDate
