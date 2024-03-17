@@ -6,11 +6,11 @@ namespace TMS.Application.Interfaces;
 public interface IIpService
 {
     /// <summary>
-    ///     Get string representation of an ip address.
-    ///     If request originate from local network then return server ip.
+    /// Get the string representation of an IP address.
+    /// If the request originates from the local network, the server IP is returned.
     /// </summary>
-    /// <param name="ip">IPAddress to transform</param>
-    /// <param name="cancellationToken">A cancellation token that is used to receive notice of cancellation.</param>
-    /// <returns>Returns an string representation of IPv4</returns>
-    Task<CustomResponse<string>> GetIpAsync(IPAddress? ip, CancellationToken cancellationToken);
+    /// <param name="ip">The IPAddress to transform.</param>
+    /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
+    /// <returns>The string representation of the IPv4 address.</returns>
+    Task<OperationResult<string>> GetIpAsync(IPAddress? ip, CancellationToken cancellationToken);
 }

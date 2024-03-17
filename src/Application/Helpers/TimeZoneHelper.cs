@@ -12,7 +12,7 @@ public class TimeZoneHelper(
 {
     private TimeZoneDetails? _timeZone;
     private TimeZoneInfo? _tzInfo;
-    private int _stdOffsetSeconds = 0;
+    private int _stdOffsetSeconds;
     private int? _dstOffsetSeconds = null;
 
     private readonly Dictionary<string, string> _knownTimeZoneAliases =
@@ -23,8 +23,9 @@ public class TimeZoneHelper(
     {
         bool wasReset = ResetTimeZone(userTimeZone);
         if (_timeZone == null)
+        {
             return dateTime.DateTime;
-        
+        }
         int offset = CalculateOffset(dateTime, wasReset);
         return dateTime.UtcDateTime.AddSeconds(offset);
     }
@@ -48,8 +49,9 @@ public class TimeZoneHelper(
     private bool ResetTimeZone(TimeZoneDetails? userTimeZone)
     {
         if (userTimeZone?.TimeZone == _timeZone?.TimeZone)
+        {
             return false;
-
+        }
         _timeZone = userTimeZone;
         return true;
     }
@@ -57,34 +59,41 @@ public class TimeZoneHelper(
     private int CalculateOffset(DateTimeOffset dateTime, bool needRecalculation)
     {
         if (_timeZone == null)
+        {
             return (int)dateTime.Offset.TotalSeconds;
-
+        }
         if (needRecalculation)
+        {
             RecalculateOffset();
-        
-        var tz = GetTimeZoneInfo(needRecalculation);
-        if (tz == null)
+        }
+
+        TimeZoneInfo? tzInfo = GetTimeZoneInfo(needRecalculation);
+        if (tzInfo == null)
+        {
             return RoughlyDetermineStandardOrDst(dateTime);
-        
-        return tz.IsDaylightSavingTime(dateTime) && _dstOffsetSeconds.HasValue
+        }
+
+        return tzInfo.IsDaylightSavingTime(dateTime) && _dstOffsetSeconds.HasValue
             ? _dstOffsetSeconds.Value
             : _stdOffsetSeconds;
     }
 
     private void RecalculateOffset()
     {
-        if (_timeZone == null)
-            return;
-        
-        _stdOffsetSeconds = _timeZone.StandardUtcOffsetSeconds;
-        _dstOffsetSeconds = _timeZone.HasDayLightSaving
-            ? _timeZone.DstOffsetToUtcSeconds
-            : _stdOffsetSeconds;
+        if (_timeZone != null)
+        {
+            _stdOffsetSeconds = _timeZone.StandardUtcOffsetSeconds;
+            _dstOffsetSeconds = _timeZone.HasDayLightSaving
+                ? _timeZone.DstOffsetToUtcSeconds
+                : _stdOffsetSeconds;
+        }
     }
-    private TimeZoneInfo? GetTimeZoneInfo(bool update)
+    private TimeZoneInfo? GetTimeZoneInfo(bool wasChanged)
     {
-        if (!update)
+        if (!wasChanged)
+        {
             return _tzInfo;
+        }
 
         if (_timeZone == null)
         {
@@ -92,24 +101,26 @@ public class TimeZoneHelper(
             return _tzInfo;
         }
 
-        if (TimeZoneInfo.TryFindSystemTimeZoneById(_timeZone.TimeZone, out var tz))
+        if (TimeZoneInfo.TryFindSystemTimeZoneById(_timeZone.TimeZone, out TimeZoneInfo? tzInfo))
         {
-            _tzInfo = tz;
+            _tzInfo = tzInfo;
         }
-        else if (_knownTimeZoneAliases.TryGetValue(_timeZone.TimeZone, out var alias)
-            && TimeZoneInfo.TryFindSystemTimeZoneById(alias, out tz))
+        else if (_knownTimeZoneAliases.TryGetValue(_timeZone.TimeZone, out string? alias)
+            && TimeZoneInfo.TryFindSystemTimeZoneById(alias, out tzInfo))
         {
-            _tzInfo = tz;
+            _tzInfo = tzInfo;
         }
         return _tzInfo;
     }
     private int RoughlyDetermineStandardOrDst(DateTimeOffset dateTime)
     {
-        if (_timeZone == null)
+        if (_timeZone == null || !_timeZone.HasDayLightSaving)
+        {
             return _stdOffsetSeconds;
+        }
 
         _logger.LogWarning("DST rules cannot be resolved for the time zone {timezone}.", _timeZone.TimeZone);
-        _logger.LogWarning("The approximate dates of starting and ending of the daylight saving time will be used.");
+        _logger.LogWarning("The approximate dates for the start and end of daylight saving time will be used..");
 
         int transactionYear = dateTime.Year;
 
@@ -118,8 +129,10 @@ public class TimeZoneHelper(
         int dstEndMonth = _timeZone.DstEnd?.Month ?? 10;
         int dstEndDay = _timeZone.DstEnd?.Day ?? 20;
 
-        var dstApproxStart = new DateTimeOffset(transactionYear, dstStartMonth, dstStartDay, 3, 0, 0, TimeSpan.Zero);
-        var dstApproxEnd = new DateTimeOffset(transactionYear, dstEndMonth, dstEndDay, 4, 0, 0, TimeSpan.Zero);
+        var dstApproxStart = new DateTimeOffset(transactionYear, dstStartMonth, dstStartDay,
+            3, 0, 0, TimeSpan.FromSeconds(_stdOffsetSeconds));
+        var dstApproxEnd = new DateTimeOffset(transactionYear, dstEndMonth, dstEndDay,
+            4, 0, 0, TimeSpan.FromSeconds(_dstOffsetSeconds ?? _stdOffsetSeconds));
 
         return dateTime >= dstApproxStart && dateTime < dstApproxEnd && _dstOffsetSeconds.HasValue
             ? _dstOffsetSeconds.Value

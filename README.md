@@ -1,4 +1,4 @@
-##Transaction Management System
+## Transaction Management System
 ### Table of Contents
 * [Introduction](#introduction)
 * [Launch](#launch)
@@ -47,7 +47,7 @@ Before starting the application, ensure that the connection string to your insta
 
 ### Impementation Details
 #### DST and TimeZoneInfo
-To check if Daylight Saving Time (DST) is applied, the TimeZoneInfo class is used to search for the time zone with the specific IANA name. Depending on the operating system, some IANA time zone names may be missing from the system registry. In such cases, fallback values for the time zone IDs can be specified in the `timezone-aliases.json` file.
+To check if Daylight Saving Time (DST) is applied, the TimeZoneInfo class is used to search for the time zone with the specific IANA name. Depending on the operating system, some IANA time zone names may be missing from the system registry. In such cases, fallback values for the time zone IDs can be specified in the `timezone-aliases.json` file.  
 The functionality was tested on the following operating systems:
 - Ubuntu 22.04, which contains all IANA names, thus no fallback values were necessary.
 - Windows 10 (as of March 15, 2024), is missing 9 time zone IANA names, for which fallback values are provided in the `timezone-aliases.json` file by default. If the system lacks information about a specific time zone IANA and no fallback value is provided, daylight saving time calculation rules will be approximated.
@@ -66,6 +66,6 @@ There is a difference between the client time zone and the current user or arbit
 - Using the user or arbitrary time zone while filtering considers what time was in the user's time zone when the transaction occurred and checks if this **local user time** (as opposed to the transaction time) falls within the specified range. For example, if the user time zone is UTC+2, neither transaction A nor B will be selected because according to the user's time zone, neither of them occurred on 15.03.2024 (A occured on 14.03.2024 16:30 UTC+2, and B on 16.03.2024 11:30 UTC+2).
 
 #### DST effect on time displaying
-When transactions are displayed in the time of the current API user (or arbitrary time zone) and this zone observes daylight saving time (DST), the DST adjustment is applied to the displayed transaction times. For example, transactions from a time zone without DST that occurred at the same time on different dates may be displayed with different times for a time zone that observes DST. For example, for Europe/Kyiv:
-15.03.2024 17:30 UTC-4 -> 15.03.2024 23:30 UTC+2 (DST is not active on March 15).
+When transactions are displayed in the time of the current API user (or arbitrary time zone) and this zone observes daylight saving time (DST), the DST adjustment is applied to the displayed transaction times. For example, transactions from a time zone without DST that occurred at the same time on different dates may be displayed with different times for a time zone that observes DST. For example, for Europe/Kyiv:  
+15.03.2024 17:30 UTC-4 -> 15.03.2024 23:30 UTC+2 (DST is not active on March 15).  
 15.06.2023 17:30 UTC-4 -> 16.06.2023 00:30 UTC+3 (DST is active on June 16).

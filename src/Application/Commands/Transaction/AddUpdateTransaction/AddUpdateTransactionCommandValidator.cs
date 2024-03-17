@@ -6,10 +6,16 @@ public class AddUpdateTransactionCommandValidator : AbstractValidator<AddUpdateT
 {
     public AddUpdateTransactionCommandValidator()
     {
-        RuleFor(t => t.TransactionId).NotEmpty();
-        RuleFor(t => t.ClientEmail).NotEmpty().EmailAddress();
-        RuleFor(t => t.Amount).NotNull();
-        RuleFor(t => t.TransactionDate).NotNull()
-            .Must(td => DateTimeOffset.UtcNow > td);
+        RuleFor(t => t.TransactionId)
+            .NotEmpty();
+        RuleFor(t => t.ClientEmail)
+            .NotEmpty()
+            .EmailAddress();
+        RuleFor(t => t.Amount)
+            .NotNull();
+        RuleFor(t => t.TransactionDate)
+            .NotNull()
+            .Must(td => DateTimeOffset.UtcNow > td)
+            .WithMessage("Transaction date cannot be in the future.");
     }
 }

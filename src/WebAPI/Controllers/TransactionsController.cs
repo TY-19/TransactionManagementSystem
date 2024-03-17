@@ -11,7 +11,6 @@ namespace TMS.WebAPI.Controllers;
 [ApiController]
 public class TransactionsController(
     ITransactionService transactionService,
-    IIpService ipService,
     ITimeZoneService timeZoneService
     ) : ControllerBase
 {
@@ -28,11 +27,11 @@ public class TransactionsController(
     /// 
     ///     T-1-67.63636363636364_0.76,John Doe,john.doe@example.com,$375.39,2024-01-10 01:16:23,"6.602635264, -98.2909591552"
     /// </remarks>
-    /// <response code="204">Transactions were successfully imported.</response>
+    /// <response code="200">Statistics of the import process.</response>
     /// <response code="400">Transactions cannot be imported.</response>
     [Route("import")]
     [HttpPost]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ImportTransactionsFromCsv(IFormFile csvFile)
     {
@@ -40,8 +39,7 @@ public class TransactionsController(
             return BadRequest("Invalid file format");
 
         using Stream stream = csvFile.OpenReadStream();
-        var result = await transactionService.ImportFromCsvAsync(stream, Request.HttpContext.RequestAborted);
-        return result.Succeeded ? NoContent() : BadRequest(result.Message);
+        return Ok(await transactionService.ImportFromCsvAsync(stream, Request.HttpContext.RequestAborted));
     }
 
     /// <summary>
@@ -74,9 +72,10 @@ public class TransactionsController(
     /// <param name="timeZoneIanaName">
     ///     Full IANA time zone name.
     ///     If set the date and time values are adjusted to display in the time of this zone.
-    ///     Takes precedence over userUserTimeZone flag. When combined with properties that
-    ///     require filtering by date the time of the specified time zone is used.
-    ///     To get all available time zones see https://timeapi.io/api/TimeZone/AvailableTimeZones
+    ///     Takes precedence over <paramref name="useUserTimeZone"/> flag.
+    ///     When combined with properties that require filtering by date the time of the specified
+    ///     time zone is used. To get all available time zones see
+    ///     <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
     /// </param>
     /// <param name="startYear">
     ///     If set, transactions with transactionDate in this year (starting Jan. 1)
@@ -128,22 +127,20 @@ public class TransactionsController(
         string? timeZoneIanaName = null, int? startYear = null, int? startMonth = null,
         int? startDay = null, int? endYear = null, int? endMonth = null, int? endDay = null)
     {
-        var ipsResponse = await ipService.GetIpAsync(
-            Request.HttpContext.Connection.RemoteIpAddress, Request.HttpContext.RequestAborted);
-        if (!ipsResponse.Succeeded)
-            return BadRequest(ipsResponse.Message);
-
-        var tzsResponse = await timeZoneService.GetTimeZone(
-            timeZoneIanaName, useUserTimeZone, ipsResponse.Payload, Request.HttpContext.RequestAborted);
+        OperationResult<TimeZoneDetails> tzsResponse = await timeZoneService.GetTimeZoneAsync(
+            timeZoneIanaName, useUserTimeZone, Request.HttpContext.Connection.RemoteIpAddress,
+            Request.HttpContext.RequestAborted);
         if (!tzsResponse.Succeeded)
+        {
             return BadRequest(tzsResponse.Message);
+        }
 
         TimeZoneDetails? timeZone = tzsResponse.Payload;
         DateFilterParameters? startDate = DateFilterParameters.CreateFilterParameters(startYear, startMonth, startDay, true);
         DateFilterParameters? endDate = DateFilterParameters.CreateFilterParameters(endYear, endMonth, endDay, false);
 
         string fileName = transactionService.GetTransactionsFileName(timeZone, startDate, endDate);
-        string fileType = transactionService.GetFileMimeType();
+        string fileType = transactionService.GetExcelFileMimeType();
         MemoryStream fileStream = await transactionService.ExportToExcelAsync(columns, sortBy, sortAsc,
             timeZone, startDate, endDate, Request.HttpContext.RequestAborted);
         return File(fileStream, fileType, fileName);

@@ -11,20 +11,26 @@ public class AddUpdateClientCommandHandler(
 {
     public async Task Handle(AddUpdateClientCommand command, CancellationToken cancellationToken)
     {
-        var parameters = new { command.Name, command.Email, command.Latitude, command.Longitude };
+        var parameters = new
+        {
+            command.Name,
+            command.Email,
+            command.Latitude,
+            command.Longitude
+        };
 
-        var sql = @$"
+        string sql = @$"
             IF EXISTS(SELECT Id AS ClientId FROM Clients WHERE Email = @Email)
-                BEGIN
-                    UPDATE Clients
-                    SET Name = @Name, Latitude = @Latitude, Longitude = @Longitude
-                    WHERE Email = @Email
-                END
+            BEGIN
+                UPDATE Clients
+                SET Name = @Name, Latitude = @Latitude, Longitude = @Longitude
+                WHERE Email = @Email
+            END
             ELSE
-                BEGIN
-                    INSERT INTO Clients(Name, Email, Latitude, Longitude)
-                    VALUES (@Name, @Email, @Latitude, @Longitude)
-                END
+            BEGIN
+                INSERT INTO Clients(Name, Email, Latitude, Longitude)
+                VALUES (@Name, @Email, @Latitude, @Longitude)
+            END
         ";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);

@@ -6,14 +6,20 @@ public class AddUpdateClientCommandValidator : AbstractValidator<AddUpdateClient
 {
     public AddUpdateClientCommandValidator()
     {
-        RuleFor(c => c.Name).NotEmpty();
-        RuleFor(c => c.Email).NotEmpty()
+        RuleFor(c => c.Name)
+            .NotEmpty();
+        RuleFor(c => c.Email)
+            .NotEmpty()
             .EmailAddress();
-        RuleFor(c => c.Latitude).NotEmpty()
+        RuleFor(c => c.Latitude)
             .GreaterThanOrEqualTo(-90m)
-            .LessThanOrEqualTo(90m);
-        RuleFor(c => c.Longitude).NotEmpty()
+                .WithMessage("Latitude cannot be less than -90 degrees.")
+            .LessThanOrEqualTo(90m)
+                .WithMessage("Latitude cannot be more than 90 degrees.");
+        RuleFor(c => c.Longitude)
             .GreaterThanOrEqualTo(-180m)
-            .LessThanOrEqualTo(180m);
+                .WithMessage("Longitude cannot be less than -180 degrees.")
+            .LessThanOrEqualTo(180m)
+                .WithMessage("Longitude cannot be more than 180 degrees.");
     }
 }

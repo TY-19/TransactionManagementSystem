@@ -19,7 +19,7 @@ public class AddUpdateTransactionCommandHandler(
             command.TransactionDate
         };
 
-        var sql = @$"
+        string sql = @$"
             IF EXISTS (SELECT 1 FROM Transactions WHERE TransactionId = @TransactionId)
             BEGIN
                 UPDATE Transactions

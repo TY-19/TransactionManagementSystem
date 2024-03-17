@@ -18,15 +18,15 @@ public class FreeIpService(
     private string BaseURL => configuration.GetSection("FreeIp")["BaseUrl"] ?? "https://freeipapi.com/api/json";
 
     /// <inheritdoc cref="IIpService.GetIpAsync(IPAddress?, CancellationToken)"/>
-    public async Task<CustomResponse<string>> GetIpAsync(IPAddress? ip, CancellationToken cancellationToken)
+    public async Task<OperationResult<string>> GetIpAsync(IPAddress? ip, CancellationToken cancellationToken)
     {
         string? ipv4 = ip?.MapToIPv4().ToString();
         if (!IsValidIpv4(ipv4, out bool isLocalNetwork))
-            return new CustomResponse<string>(true) { Payload = ipv4 };
+            return new OperationResult<string>(true) { Payload = ipv4 };
         else if (isLocalNetwork)
             return await GetServerIpAsync(cancellationToken);
         else
-            return new CustomResponse<string>(false, "IP cannot be determined.");
+            return new OperationResult<string>(false, "IP cannot be determined.");
     }
 
     private static bool IsValidIpv4(string? ipv4, out bool isLocalNetwork)
@@ -68,7 +68,7 @@ public class FreeIpService(
             || (values[0] == 192 && values[1] == 168);
     }
 
-    private async Task<CustomResponse<string>> GetServerIpAsync(CancellationToken cancellationToken)
+    private async Task<OperationResult<string>> GetServerIpAsync(CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseURL}/";
         logger.LogDebug("Call {url}", urlFull);
@@ -78,7 +78,7 @@ public class FreeIpService(
         {
             logger.LogError("FreeIp return status code {statusCode}.\r\nRequest url: {url}." +
                 "\r\nResponse: {response}", response.StatusCode, urlFull, response);
-            return new CustomResponse<string>(false, "Request to the external API has failed.");
+            return new OperationResult<string>(false, "Request to the external API has failed.");
         }
 
         try
@@ -86,9 +86,9 @@ public class FreeIpService(
             using var stream = response.Content.ReadAsStream(cancellationToken);
             var deserializedResponse = JsonSerializer.Deserialize<FreeIpResponse>(stream, jsonSerializerOptions);
             if (deserializedResponse == null)
-                return new CustomResponse<string>(false, "Cannot process the external API response");
+                return new OperationResult<string>(false, "Cannot process the external API response");
 
-            return new CustomResponse<string>(true) { Payload = deserializedResponse.IpAddress };
+            return new OperationResult<string>(true) { Payload = deserializedResponse.IpAddress };
         }
         catch (TaskCanceledException)
         {
@@ -97,7 +97,7 @@ public class FreeIpService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error has occurred deserializing API response.");
-            return new CustomResponse<string>(false, "Cannot process the external API response");
+            return new OperationResult<string>(false, "Cannot process the external API response");
         }
     }
 

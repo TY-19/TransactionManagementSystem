@@ -12,33 +12,39 @@ namespace TMS.Application.Services;
 
 public class TransactionService(
     IMediator mediator,
-    ICsvParser csvParser,
+    ICsvHelper csvParser,
     IXlsxHelper xlsxHelper,
     ITimeZoneHelper timeZoneHelper,
-    ITransactionPropertyManager propertyManager,
+    ITransactionPropertyHelper propertyManager,
     ILogger<TransactionService> logger
     ) : ITransactionService
 {
-    public async Task<CustomResponse> ImportFromCsvAsync(Stream stream, CancellationToken cancellationToken)
+    public async Task<OperationResult> ImportFromCsvAsync(Stream stream, CancellationToken cancellationToken)
     {
-        CustomResponse response = new();
+        OperationResult response = new();
         using var reader = new StreamReader(stream);
         int row = 0;
+        int imported = 0;
+        int skipped = 0;
         while (!reader.EndOfStream)
         {
             row++;
             string? line = await reader.ReadLineAsync(cancellationToken);
             var parsedResponse = await csvParser.ParseLineAsync(line, cancellationToken);
-            if (!parsedResponse.Succeeded || parsedResponse.Payload == null)
+            if (!parsedResponse.Succeeded)
             {
-                logger.LogWarning("Parsing has failed with message: {message}. Errors {@errors}", parsedResponse.Message, parsedResponse.Errors);
-                response.Errors.AddRange(parsedResponse.Errors);
+                logger.LogInformation("{line} was not imported: {message}.", line, parsedResponse.Message);
+                response.Errors.Add($"Row {row} was not imported: {parsedResponse.Message}");
                 continue;
             }
-
-            TransactionImportDto transaction = parsedResponse.Payload;
+            if (parsedResponse.Payload == null)
+            {
+                skipped++;
+                continue;
+            }
             try
             {
+                TransactionImportDto transaction = parsedResponse.Payload;
                 await mediator.Send(new AddUpdateClientCommand()
                 {
                     Name = transaction.Name,
@@ -54,19 +60,25 @@ public class TransactionService(
                     Amount = transaction.Amount,
                     TransactionDate = transaction.TransactionDate
                 }, cancellationToken);
+
+                imported++;
             }
             catch (ValidationException ex)
             {
-                logger.LogError(ex, "One or more validation errors has occurred");
-                throw;
+                string error = string.Join(", ", ex.Errors.Select(e => e.ErrorMessage));
+                response.Errors.Add($"Row {row} was not imported. Validation error: {error}");
+                logger.LogInformation("{line} was not imported. Validation error have occurred: {error}", line, error);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occur when writing to the database");
-                throw;
+                response.Errors.Add($"Row {row} was not imported. An error occur when writing to the database.");
+                logger.LogError(ex, "An unknown error occur when writing to the database.");
             }
         }
-        return new CustomResponse() { Succeeded = true };
+
+        response.Succeeded = true;
+        response.Message = $"{row} rows analyzed, {imported} imported, {skipped} skipped, {response.Errors.Count} failed to import";
+        return response;
     }
 
     public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
@@ -81,7 +93,7 @@ public class TransactionService(
             {
                 RequestedColumns = GetDatabaseColumnNames(requestedColumns, timeZoneDetails),
                 SortBy = sortColumn == null ? null : propertyManager.GetDatabaseColumnName(sortColumn.Value),
-                SortAsc = sortAsc, 
+                SortAsc = sortAsc,
                 TimeZone = timeZoneDetails,
                 StartDate = startDate,
                 EndDate = endDate
@@ -102,13 +114,13 @@ public class TransactionService(
         else if (endDate != null)
             name += $"_before_{endDate.Year}_{endDate.Month}_{endDate.Day}";
 
-        name += timeZoneDetails == null ? "_clients_time" : $"_{timeZoneDetails.TimeZone}";
-        name += xlsxHelper.FileExtension;
-        
+        name += timeZoneDetails == null ? "_clients_time_zones" : $"_{timeZoneDetails.TimeZone}_time_zone";
+        name += xlsxHelper.ExcelFileExtension;
+
         return name;
     }
 
-    public string GetFileMimeType() => xlsxHelper.ExcelMimeType;
+    public string GetExcelFileMimeType() => xlsxHelper.ExcelMimeType;
 
     private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames, TimeZoneDetails? timeZoneDetails)
     {
@@ -138,7 +150,7 @@ public class TransactionService(
         DateTimeOffset? end = endDate?.AsOffset();
         if (endDate != null)
             end!.Value.AddMinutes(timeZoneHelper.GetOffsetInSeconds(end.Value, userTimeZone));
-        
+
         List<TransactionExportDto> transactionList = transactions.ToList();
         for (int i = transactionList.Count - 1; i >= 0; i--)
         {

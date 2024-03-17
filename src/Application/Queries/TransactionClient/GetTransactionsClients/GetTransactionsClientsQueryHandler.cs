@@ -23,8 +23,9 @@ public class GetTransactionsClientsQueryHandler(
             {BuildWhereClause(request)}
             {BuildOrderByClause(request.SortBy, request.SortAsc)}";
 
-        using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
+        cancellationToken.ThrowIfCancellationRequested();
 
+        using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
         return await dbConnection.QueryAsync<TransactionExportDto>(sql);
     }
 
@@ -61,7 +62,7 @@ public class GetTransactionsClientsQueryHandler(
         if (startDate != null && endDate != null)
             composite = " AND ";
 
-        string startFilter = startDate == null ? "" 
+        string startFilter = startDate == null ? ""
             : GetFilterByClientDate(startDate.Year, startDate.Month, startDate.Day, true);
         string endFilter = endDate == null ? ""
             : GetFilterByClientDate(endDate.Year, endDate.Month, endDate.Day, false);
@@ -87,10 +88,10 @@ public class GetTransactionsClientsQueryHandler(
 
         if (startDate != null && endDate != null)
             return GetFilterWithBothLimitsInUserTimeZone(startDate, endDate, standardOffset, dstOffset);
-        
+
         if (startDate != null)
             return GetFilterWithEitherLimitInUserTimeZone(startDate.Year, startDate.Month, startDate.Day, standardOffset, dstOffset, true);
-        
+
         if (endDate != null)
             return GetFilterWithEitherLimitInUserTimeZone(endDate.Year, endDate.Month, endDate.Day, standardOffset, dstOffset, false);
 
@@ -125,7 +126,7 @@ public class GetTransactionsClientsQueryHandler(
 
         if (string.IsNullOrEmpty(dstOffset))
             dstOffset = offset;
-            
+
         return @$"WHERE TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {dstOffset}'
                 AND TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {offset}'";
     }

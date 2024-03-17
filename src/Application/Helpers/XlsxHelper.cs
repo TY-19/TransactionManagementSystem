@@ -1,5 +1,4 @@
 ﻿using ClosedXML.Excel;
-using Microsoft.Extensions.Logging;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Domain.Enums;
@@ -7,16 +6,19 @@ using TMS.Domain.Enums;
 namespace TMS.Application.Helpers;
 
 public class XlsxHelper(
-    ITransactionPropertyManager propertyManager
+    ITransactionPropertyHelper _propertyManager
     ) : IXlsxHelper
 {
-    private List<Action<TransactionExportDto, int>> actions = null!;
-    private XLWorkbook workbook = null!;
-    private IXLWorksheet worksheet = null!;
-    private int columnNumber = 1;
+    private List<Action<TransactionExportDto, int>> _actions = null!;
+    private XLWorkbook _workbook = null!;
+    private IXLWorksheet _worksheet = null!;
+    private int _columnNumber = 1;
 
+    /// <inheritdoc cref="IXlsxHelper.ExcelMimeType"/>
     public string ExcelMimeType => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    public string FileExtension => ".xlsx";
+    /// <inheritdoc cref="IXlsxHelper.ExcelFileExtension"/>
+    public string ExcelFileExtension => ".xlsx";
+
     /// <inheritdoc cref="IXlsxHelper.WriteTransactionsIntoXlsxFile(IEnumerable{TransactionExportDto}, List{TransactionPropertyName}, CancellationToken);"/>
     public MemoryStream WriteTransactionsIntoXlsxFile(IEnumerable<TransactionExportDto> transactions,
         List<TransactionPropertyName> columns, CancellationToken cancellationToken)
@@ -26,41 +28,42 @@ public class XlsxHelper(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            WriteColumnHeader(columnNumber, columns[i]);
+            WriteColumnHeader(_columnNumber, columns[i]);
             SetPropertyForTheColumn(columns[i]);
-            columnNumber++;
+            _columnNumber++;
         }
         WriteTransactions(transactions, cancellationToken);
-        worksheet.Columns().AdjustToContents();
-        return WorkbookAsAMemoryStream();
+        _worksheet.Columns().AdjustToContents();
+        return WorkbookAsAMemoryStream(cancellationToken);
     }
     private void ClearState()
     {
-        actions = [];
-        workbook = new XLWorkbook();
-        worksheet = workbook.Worksheets.Add("Transactions");
-        columnNumber = 1;
+        _actions = [];
+        _workbook = new XLWorkbook();
+        _worksheet = _workbook.Worksheets.Add("Transactions");
+        _columnNumber = 1;
     }
     private void WriteColumnHeader(int columnNumber, TransactionPropertyName propertyName)
     {
-        worksheet.Cell(1, columnNumber).Value = propertyManager.GetDisplayedName(propertyName);
+        _worksheet.Cell(1, columnNumber).Value = _propertyManager.GetDisplayedName(propertyName);
     }
     private void SetPropertyForTheColumn(TransactionPropertyName propertyName)
     {
-        actions.Add(GetWritingAction(columnNumber, propertyName));
+        _actions.Add(GetWritingAction(_columnNumber, propertyName));
     }
 
-    private void WriteTransactions(IEnumerable<TransactionExportDto> transactions, CancellationToken cancellationToken)
+    private void WriteTransactions(IEnumerable<TransactionExportDto> transactions,
+        CancellationToken cancellationToken)
     {
         int row = 2;
-        foreach (var transaction in transactions)
+        foreach (TransactionExportDto transaction in transactions)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             int col = 0;
-            while (col < columnNumber - 1)
+            while (col < _columnNumber - 1)
             {
-                actions[col].Invoke(transaction, row);
+                _actions[col].Invoke(transaction, row);
                 col++;
             }
             row++;
@@ -71,8 +74,8 @@ public class XlsxHelper(
     {
         return (t, row) =>
         {
-            worksheet.Cell(row, column).Value = GetProperty(t, prop);
-            ApplyStyles(worksheet, row, column, prop);
+            _worksheet.Cell(row, column).Value = GetProperty(t, prop);
+            ApplyStyles(_worksheet, row, column, prop);
         };
     }
     private static XLCellValue GetProperty(TransactionExportDto transaction, TransactionPropertyName prop)
@@ -105,10 +108,11 @@ public class XlsxHelper(
         }
     }
 
-    public MemoryStream WorkbookAsAMemoryStream()
+    public MemoryStream WorkbookAsAMemoryStream(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var stream = new MemoryStream();
-        workbook.SaveAs(stream);
+        _workbook.SaveAs(stream);
         stream.Position = 0;
         return stream;
     }

@@ -10,6 +10,7 @@ namespace TMS.Application.Services;
 
 public class TimeZoneService(
     HttpClient httpClient,
+    IIpService ipService,
     IConfiguration configuration,
     ILogger<TimeZoneService> logger
     ) : ITimeZoneService
@@ -19,48 +20,55 @@ public class TimeZoneService(
     private string BaseUrl => configuration.GetSection("TimeApi")["BaseUrl"] ?? "https://timeapi.io/api/TimeZone";
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZone(string?, bool, string?, CancellationToken)"/>
-    public async Task<CustomResponse<TimeZoneDetails>> GetTimeZone(string? IanaName, bool useUserTimeZone,
-        string? ipv4, CancellationToken cancellationToken)
+    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneAsync(string? IanaName, bool useUserTimeZone,
+        IPAddress? ip, CancellationToken cancellationToken)
     {
         if (IanaName != null)
             return await GetTimeZoneByIanaNameAsync(IanaName, cancellationToken);
-        
+
         if (useUserTimeZone)
-            return await GetTimeZoneByIpAsync(ipv4, cancellationToken);
-        
-        return new CustomResponse<TimeZoneDetails>(true);
+        {
+            OperationResult<string> ipsResponse = await ipService.GetIpAsync(ip, cancellationToken);
+            if (!ipsResponse.Succeeded)
+                return new OperationResult<TimeZoneDetails>(false, ipsResponse.Message ?? "Ip service error");
+
+            return await GetTimeZoneByIpAsync(ipsResponse.Payload, cancellationToken);
+        }
+
+
+        return new OperationResult<TimeZoneDetails>(true);
     }
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByIpAsync(string?, CancellationToken)"/>
-    public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByIpAsync(string? ip, CancellationToken cancellationToken)
+    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneByIpAsync(string? ip, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/ip?ipAddress={ip}";
         return await CallExternalApiAsync(urlFull, cancellationToken);
     }
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByCoordinatesAsync(decimal, decimal, CancellationToken)(string?, CancellationToken)"/>
-    public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByCoordinatesAsync(decimal latitude, decimal longitude, CancellationToken cancellationToken)
+    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneByCoordinatesAsync(decimal latitude, decimal longitude, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/coordinate?latitude={latitude.ToString(CultureInfo.InvariantCulture)}&longitude={longitude.ToString(CultureInfo.InvariantCulture)}";
         return await CallExternalApiAsync(urlFull, cancellationToken);
     }
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZoneByIanaNameAsync(string, CancellationToken)"/>
-    public async Task<CustomResponse<TimeZoneDetails>> GetTimeZoneByIanaNameAsync(string ianaName, CancellationToken cancellationToken)
+    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneByIanaNameAsync(string ianaName, CancellationToken cancellationToken)
     {
         string urlFull = $"{BaseUrl}/zone?timeZone={ianaName.Replace(" ", "")}";
         return await CallExternalApiAsync(urlFull, cancellationToken);
     }
 
-    private async Task<CustomResponse<TimeZoneDetails>> CallExternalApiAsync(string url, CancellationToken cancellationToken)
+    private async Task<OperationResult<TimeZoneDetails>> CallExternalApiAsync(string url, CancellationToken cancellationToken)
     {
         HttpResponseMessage? response;
         try
         {
             response = await httpClient.GetAsync(url, cancellationToken);
             if (response.StatusCode == HttpStatusCode.NotFound)
-                return new CustomResponse<TimeZoneDetails>(false, "Time zone was not found.");
-                
+                return new OperationResult<TimeZoneDetails>(false, "Time zone was not found.");
+
             response.EnsureSuccessStatusCode();
         }
         catch (TaskCanceledException)
@@ -70,7 +78,7 @@ public class TimeZoneService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error has happened when calling the external API. Url: {url}", url);
-            return new CustomResponse<TimeZoneDetails>(false);
+            return new OperationResult<TimeZoneDetails>(false);
         }
 
         try
@@ -78,9 +86,9 @@ public class TimeZoneService(
             using var stream = response.Content.ReadAsStream(cancellationToken);
             var deserializedResponse = JsonSerializer.Deserialize<TimeZoneApiResponse>(stream, jsonSerializerOptions);
             if (deserializedResponse == null)
-                return new CustomResponse<TimeZoneDetails>(false, "Cannot process the external API response.");
+                return new OperationResult<TimeZoneDetails>(false, "Cannot process the external API response.");
 
-            return new CustomResponse<TimeZoneDetails>(true, ToTimeZoneDetails(deserializedResponse));
+            return new OperationResult<TimeZoneDetails>(true, ToTimeZoneDetails(deserializedResponse));
         }
         catch (TaskCanceledException)
         {
@@ -89,7 +97,7 @@ public class TimeZoneService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error has occurred deserializing API response. Url: {url}", url);
-            return new CustomResponse<TimeZoneDetails>(false, "Cannot process the external API response.");
+            return new OperationResult<TimeZoneDetails>(false, "Cannot process the external API response.");
         }
     }
 
@@ -133,14 +141,5 @@ public class TimeZoneService(
         public UtcOffset DstOffsetToStandardTime { get; set; } = default!;
         public DateTimeOffset DstStart { get; set; } = default;
         public DateTimeOffset DstEnd { get; set; } = default;
-        public DstDuration DstDuration { get; set; } = default!;
-    }
-
-    private sealed class DstDuration
-    {
-        public int TotalDays { get; set; } = default;
-        public int TotalHours { get; set; } = default;
-        public int TotalMinutes { get; set; } = default;
-        public int TotalSeconds { get; set; } = default;
     }
 }

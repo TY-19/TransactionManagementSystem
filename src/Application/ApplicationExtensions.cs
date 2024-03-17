@@ -28,8 +28,8 @@ public static class ApplicationExtensions
         services.AddScoped<IIpService, FreeIpService>();
         services.AddScoped<ITimeZoneHelper, TimeZoneHelper>();
         services.AddScoped<IXlsxHelper, XlsxHelper>();
-        services.AddScoped<ICsvParser, CsvParser>();
-        services.AddSingleton<ITransactionPropertyManager, TransactionPropertyManager>();
+        services.AddScoped<ICsvHelper, CsvHelper>();
+        services.AddSingleton<ITransactionPropertyHelper, TransactionPropertyHelper>();
 
         return services;
     }
