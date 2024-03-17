@@ -12,8 +12,8 @@ using TMS.Infrastructure.Data;
 namespace TMS.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(TmsDbContext))]
-    [Migration("20240308180513_UpdateClientsTable")]
-    partial class UpdateClientsTable
+    [Migration("20240317122224_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

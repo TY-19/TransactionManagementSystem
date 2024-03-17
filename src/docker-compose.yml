@@ -1,0 +1,22 @@
+version: '3'
+services:
+  ms-sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "PaSSw0rd"
+    ports:
+      - "1433:1433"
+  tms-api:
+    container_name: transaction-management-system
+    build: .
+    entrypoint: ["sh", "-c", "sleep 10 && dotnet WebAPI.dll"]
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      ConnectionStrings__Default: "Server=ms-sql-server,1433;User Id=SA;Password=PaSSw0rd;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    depends_on:
+      - ms-sql-server
+    links:
+      - ms-sql-server

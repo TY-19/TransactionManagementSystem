@@ -17,7 +17,19 @@ This project was developed as a test task for the position of Junior .NET Develo
 The Transaction Management System is a simple API that provides functionality for importing/exporting transactions.
 
 ### Launch
-Before starting the application, ensure that the connection string to your instance of MS SQL Server is provided by editing the **appsettings.json** file in the **src/WebAPI folder**.
+To start the application, you have several options:
+- Using [.NET Runtime or SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+  - Place the connection string to your instance of MS SQL Server by editing the **appsettings.json** file in the **src/WebAPI** folder.  
+  - Navigate to the src/WebAPI folder and run the following command: `dotnet run`.
+
+- Using [Docker](https://www.docker.com/)
+  - Run the following commands from the the **src/** folder:  
+`docker build . -t tms:1.0`  
+`docker run -p 8080:8080 tms:1.0 -e ConnectionStrings__Default="YOUR_CONNECTION_STRING"`  
+
+- Using [Docker Compose](https://docs.docker.com/compose/)
+  - Navigate to the src/ folder and run `docker compose up`.
+  - If the delay in MS SQL Server initialization prevents the application from starting, stop the process and run the previous command again.
 
 ### Technology
 - ASP.NET 8
