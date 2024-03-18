@@ -5,7 +5,7 @@ namespace TMS.Application.Queries.TransactionClient.GetTransactionsClients;
 
 public class GetTransactionsClientsQuery : IRequest<IEnumerable<TransactionExportDto>>
 {
-    public List<string> ColumnNames { get; set; } = [];
+    public IEnumerable<string> ColumnNames { get; set; } = [];
     public string? SortBy { get; set; }
     public bool SortAsc { get; set; }
     public bool UseUserTimeZone { get; set; }

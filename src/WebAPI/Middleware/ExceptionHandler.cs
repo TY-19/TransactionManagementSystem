@@ -39,8 +39,9 @@ public class ExceptionHandler(IHostEnvironment env, ILogger<ExceptionHandler> lo
         problemDetails.Detail = exception.Message;
 
         if (env.IsDevelopment())
+        {
             problemDetails.Extensions["data"] = exception.Data;
-
+        }
         try
         {
             return JsonSerializer.Serialize(problemDetails);

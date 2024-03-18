@@ -19,18 +19,21 @@ public class TransactionService(
     ILogger<TransactionService> logger
     ) : ITransactionService
 {
+    /// <inheritdoc cref="ITransactionService.ImportFromCsvAsync(Stream, CancellationToken)"/>
     public async Task<OperationResult> ImportFromCsvAsync(Stream stream, CancellationToken cancellationToken)
     {
         OperationResult response = new();
-        using var reader = new StreamReader(stream);
         int row = 0;
         int imported = 0;
         int skipped = 0;
+
+        using var reader = new StreamReader(stream);
         while (!reader.EndOfStream)
         {
             row++;
             string? line = await reader.ReadLineAsync(cancellationToken);
-            var parsedResponse = await csvParser.ParseLineAsync(line, cancellationToken);
+            OperationResult<TransactionImportDto> parsedResponse = 
+                await csvParser.ParseLineAsync(line, cancellationToken);
             if (!parsedResponse.Succeeded)
             {
                 logger.LogInformation("{line} was not imported: {message}.", line, parsedResponse.Message);
@@ -71,42 +74,51 @@ public class TransactionService(
             }
             catch (Exception ex)
             {
-                response.Errors.Add($"Row {row} was not imported. An error occur when writing to the database.");
+                response.Errors.Add($"Row {row} was not imported. An error occurred when importing.");
                 logger.LogError(ex, "An unknown error occur when writing to the database.");
             }
         }
 
         response.Succeeded = true;
-        response.Message = $"{row} rows analyzed, {imported} imported, {skipped} skipped, {response.Errors.Count} failed to import";
+        response.Message = $"{row} rows analyzed: {imported} imported, {skipped} skipped, {response.Errors.Count} failed to import";
         return response;
     }
 
+    /// <inheritdoc cref="ITransactionService.ExportToExcelAsync(string, string?, bool, TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?, CancellationToken)"/>
     public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
         TimeZoneDetails? timeZoneDetails, DateFilterParameters? startDate,
         DateFilterParameters? endDate, CancellationToken cancellationToken)
     {
-        var requestedColumns = propertyManager.GetPropertiesTypes(columns.Split(','));
+        List<TransactionPropertyName> requestedProperties = propertyManager
+            .GetPropertiesTypes(columns.Split(','));
 
-        GetTransactionsClientsQuery query = PrepareQuery(requestedColumns, sortBy, sortAsc,
+        GetTransactionsClientsQuery query = PrepareQuery(requestedProperties, sortBy, sortAsc,
             timeZoneDetails, startDate, endDate);
-        
+
         IEnumerable<TransactionExportDto> transactions = await mediator.Send(query, cancellationToken);
-        
+
         transactions = ApplyDstRules(transactions, timeZoneDetails, startDate, endDate, cancellationToken);
 
-        return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedColumns, cancellationToken);
+        return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedProperties, cancellationToken);
     }
 
-    public string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateFilterParameters? startDate,
-        DateFilterParameters? endDate)
+    /// <inheritdoc cref="ITransactionService.GetTransactionsFileName(TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?)"/>
+    public string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails,
+        DateFilterParameters? startDate, DateFilterParameters? endDate)
     {
         string name = "transactions";
         if (startDate != null && endDate != null)
+        {
             name += $"_{startDate.Year}_{startDate.Month}_{startDate.Day}-{endDate.Year}_{endDate.Month}_{endDate.Day}";
+        }
         else if (startDate != null)
+        {
             name += $"_after_{startDate.Year}_{startDate.Month}_{startDate.Day}";
+        }
         else if (endDate != null)
+        {
             name += $"_before_{endDate.Year}_{endDate.Month}_{endDate.Day}";
+        }
 
         name += timeZoneDetails == null ? "_clients_time_zones" : $"_{timeZoneDetails.TimeZoneName}_time_zone";
         name += xlsxHelper.ExcelFileExtension;
@@ -114,6 +126,7 @@ public class TransactionService(
         return name;
     }
 
+    /// <inheritdoc cref="ITransactionService.GetExcelFileMimeType()"/>
     public string GetExcelFileMimeType()
     {
         return xlsxHelper.ExcelMimeType;
@@ -124,24 +137,27 @@ public class TransactionService(
         CancellationToken cancellationToken)
     {
         if (userTimeZone == null)
+        {
             return transactions;
-
+        }
         DateTimeOffset? start = startDate?.AsOffset();
         if (startDate != null)
+        {
             start!.Value.AddMinutes(timeZoneHelper.GetOffsetInSeconds(start.Value, userTimeZone));
-
+        }
         DateTimeOffset? end = endDate?.AsOffset();
         if (endDate != null)
+        {
             end!.Value.AddMinutes(timeZoneHelper.GetOffsetInSeconds(end.Value, userTimeZone));
-
+        }
         List<TransactionExportDto> transactionList = transactions.ToList();
         for (int i = transactionList.Count - 1; i >= 0; i--)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
             if (transactionList[i].TransactionDate == null)
+            {
                 continue;
-
+            }
             transactionList[i].TransactionDate = timeZoneHelper.GetDateTime(
                 transactionList[i].TransactionDate!.Value, userTimeZone);
 
@@ -159,7 +175,7 @@ public class TransactionService(
     }
 
     private GetTransactionsClientsQuery PrepareQuery(
-        List<TransactionPropertyName> requestedColumns,
+        List<TransactionPropertyName> requestedProperties,
         string? sortBy,
         bool sortAsc,
         TimeZoneDetails? timeZoneDetails,
@@ -167,8 +183,7 @@ public class TransactionService(
         DateFilterParameters? endDate
         )
     {
-        List<string> columns = GetDatabaseColumnNames(requestedColumns, timeZoneDetails)
-            .Distinct().ToList();
+        IEnumerable<string> columns = GetDatabaseColumnNames(requestedProperties, timeZoneDetails);
         TransactionPropertyName? sortProperty = propertyManager.GetProperty(sortBy);
         string? sortColumn = sortProperty == null ? null
             : propertyManager.GetDatabaseColumnName(sortProperty.Value);
@@ -193,9 +208,10 @@ public class TransactionService(
         };
     }
 
-    private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames, TimeZoneDetails? timeZoneDetails)
+    private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames,
+        TimeZoneDetails? timeZoneDetails)
     {
-        var dbColumns = propertyManager.GetDatabaseColumnNames(propertyNames);
+        List<string> dbColumns = propertyManager.GetDatabaseColumnNames(propertyNames);
         if (timeZoneDetails != null)
         {
             // Case when offset will be calculated for the current user time zone.
@@ -209,20 +225,20 @@ public class TransactionService(
         return dbColumns;
     }
 
-    private static int ChooseOffsetToUse(int standardOffset, int? dstOffset, bool isStartDate)
+    private static int ChooseOffsetToUse(int stdOffset, int? dstOffset, bool isStartDate)
     {
         if (dstOffset == null)
         {
-            return standardOffset;
+            return stdOffset;
         }
         else
         {
-            // There are edge cases when dstOffset is smaller than standardOffset
+            // There are edge cases when dstOffset is smaller than standard offset
             // so comparison is necessary. For example 'Europe/Dublin' time zone has Winter time
             // that external API treats as negative 1 hour of daylight saving.
             return isStartDate
-                ? Math.Max(standardOffset, dstOffset.Value)
-                : Math.Min(standardOffset, dstOffset.Value);
+                ? Math.Max(stdOffset, dstOffset.Value)
+                : Math.Min(stdOffset, dstOffset.Value);
         }
     }
 }

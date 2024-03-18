@@ -43,78 +43,77 @@ public class TransactionsController(
     }
 
     /// <summary>
-    ///     Allows exporting transactions into an .xlsx file while offering extensive
-    ///     customization options for specifying the transaction range.
+    /// Allows exporting transactions into an .xlsx file while offering extensive  customization
+    /// options for specifying the transaction range.
     /// </summary>
     /// <param name="columns">
-    ///     Comma-separated column names in the desired order.
-    ///     Allowed columns (case insensitive): transactionId, name, email, amount,
-    ///     transactionDate, offset, latitude, longitude.
+    /// Comma-separated column names in the desired order. Allowed columns (case insensitive):
+    /// transactionId, name, email, amount, transactionDate, offset, latitude, longitude.
     /// </param>
     /// <param name="sortBy">
-    ///     Name of the column to sort by. 
-    ///     Allowed columns (case insensitive): transactionId, name, email, amount,
-    ///     transactionDate, offset, latitude, longitude.
-    ///     Sorting order is defined by the value of the sortAsc parameter (ascending by default).
+    /// Name of the column to sort by. 
+    /// Allowed columns (case insensitive): transactionId, name, email, amount, transactionDate,
+    /// offset, latitude, longitude.
+    /// Sorting order is defined by the value of the <paramref name="sortAsc"/>(ascending by default).
     /// </param>
     /// <param name="sortAsc">
-    ///     If set to true, exported transactions are sorted in ascending order;
-    ///     otherwise, they are sorted in descending order.
-    ///     Column to sort is specified in the sortBy parameter.
+    /// If set to true, exported transactions are sorted in ascending order;
+    /// otherwise, they are sorted in descending order.
+    /// Column to sort is specified in the <paramref name="sortBy"/>.
     /// </param>
     /// <param name="useUserTimeZone">
-    ///     If set to true, the date and time values are adjusted to display in the time zone 
-    ///     of the current user, determined based on their IP address.
-    ///     If set to false, each transaction's time is displayed in its respective time zones.
-    ///     This setting also defines the time zone to use when combined with properties that 
-    ///     require filtering by date.
+    /// If set to true, the date and time values are adjusted to display in the time zone 
+    /// of the current user, determined based on their IP address.
+    /// If set to false, each transaction's time is displayed in its respective time zones.
+    /// This setting also defines the time zone to use when combined with properties that 
+    /// require filtering by date.
     /// </param>
     /// <param name="timeZoneIanaName">
-    ///     Full IANA time zone name.
-    ///     If set the date and time values are adjusted to display in the time of this zone.
-    ///     Takes precedence over <paramref name="useUserTimeZone"/> flag.
-    ///     When combined with properties that require filtering by date the time of the specified
-    ///     time zone is used. To get all available time zones see
-    ///     <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
+    /// Full IANA time zone name.
+    /// If set, the date and time values are adjusted to display in the time of this zone.
+    /// Takes precedence over <paramref name="useUserTimeZone"/> flag.
+    /// When combined with properties that require filtering by date, the time of the specified
+    /// time zone is used. To get all available time zones see
+    /// <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
     /// </param>
     /// <param name="startYear">
-    ///     If set, transactions with transactionDate in this year (starting Jan. 1)
-    ///     or following years will be returned.
-    ///     Can be combined with startMonth and startDay to set a specific start date.
-    ///     Can be combined with endYear, endMonth, endDay to narrow the date range.
+    /// If set, transactions with transactionDate in this year (starting Jan. 1)
+    /// or following years will be returned.
+    /// Can be combined with startMonth and startDay to set a specific start date.
+    /// Can be combined with endYear, endMonth, endDay to narrow the date range.
     /// </param>
     /// <param name="startMonth">
-    ///     Specify the month of the startYear to narrow the filtering range.
-    ///     Has no effect if startYear is not provided.
-    ///     Can be combined with startDay to set a specific start day (otherwise starts with
-    ///     the first day of the month).
+    /// Specify the month of the startYear to narrow the filtering range.
+    /// Has no effect if startYear is not provided.
+    /// Can be combined with startDay to set a specific start day (otherwise starts with
+    /// the first day of the month).
     /// </param>
     /// <param name="startDay">
-    ///     Specify the day of the startMonth to narrow the filtering range.
-    ///     Has no effect if startYear is not provided.
+    /// Specify the day of the startMonth to narrow the filtering range.
+    /// Has no effect if startYear is not provided.
     /// </param>
     /// <param name="endYear">
-    ///     If set, transactions with transactionDate in this year (ending Dec. 31) or previous
-    ///     years will be returned.
-    ///     Can be combined with endMonth and endDay to set a specific date.
-    ///     Can be combined with startYear, startMonth, startDay to narrow the date range.
+    /// If set, transactions with transactionDate in this year (ending Dec. 31) or previous
+    /// years will be returned.
+    /// Can be combined with endMonth and endDay to set a specific date.
+    /// Can be combined with startYear, startMonth, startDay to narrow the date range.
     /// </param> 
     /// <param name="endMonth">
-    ///     Specify the month of the endYear to narrow the filtering range.
-    ///     Has no effect if endYear is not provided.
-    ///     Can be combined with endDay to set a specific end day (otherwise ends with the last
-    ///     day of the month).
+    /// Specify the month of the endYear to narrow the filtering range.
+    /// Has no effect if endYear is not provided.
+    /// Can be combined with endDay to set a specific end day (otherwise ends with the last
+    /// day of the month).
     /// </param>
     /// <param name="endDay">
-    ///     Specify the day of the endMonth to narrow the filtering range.
-    ///     Has no effect if endYear is not provided.
+    /// Specify the day of the endMonth to narrow the filtering range.
+    /// Has no effect if endYear is not provided.
     /// </param>
     /// <remarks>
-    ///     If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
-    ///     startDay, endYear, endMonth, endDay parameters is calculated for the user's time zone.
-    ///     Otherwise, the date scope is defined for the time zone of each transaction separately.
-    ///     The offset parameter overrides time zone used for filtering and displaying transaction
-    ///     data.
+    /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
+    /// startDay, endYear, endMonth, endDay parameters is calculated for the user's time zone.
+    /// Otherwise, the date scope is defined for the time zone of each transaction separately.
+    /// The offset parameter overrides the time zone used for filtering and displaying transaction
+    /// data.
     /// </remarks>
     /// <response code="200">Returns the requested file with transactions.</response>
     /// <response code="400">Error message.</response>
@@ -136,13 +135,17 @@ public class TransactionsController(
         }
 
         TimeZoneDetails? timeZone = tzsResponse.Payload;
-        DateFilterParameters? startDate = DateFilterParameters.CreateFilterParameters(startYear, startMonth, startDay, true);
-        DateFilterParameters? endDate = DateFilterParameters.CreateFilterParameters(endYear, endMonth, endDay, false);
+        DateFilterParameters? startDate = DateFilterParameters
+            .CreateFilterParameters(startYear, startMonth, startDay, true);
+        DateFilterParameters? endDate = DateFilterParameters
+            .CreateFilterParameters(endYear, endMonth, endDay, false);
 
         string fileName = transactionService.GetTransactionsFileName(timeZone, startDate, endDate);
         string fileType = transactionService.GetExcelFileMimeType();
-        MemoryStream fileStream = await transactionService.ExportToExcelAsync(columns, sortBy, sortAsc,
-            timeZone, startDate, endDate, Request.HttpContext.RequestAborted);
+        MemoryStream fileStream = await transactionService
+            .ExportToExcelAsync(columns, sortBy, sortAsc, timeZone, startDate, endDate,
+            Request.HttpContext.RequestAborted);
+        
         return File(fileStream, fileType, fileName);
     }
 

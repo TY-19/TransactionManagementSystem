@@ -23,7 +23,7 @@ public class GetTransactionsClientsQueryHandler(
         string filtering = BuildWhereClause(request.UseUserTimeZone, request.StartDate,
             request.EndDate, request.StartDateOffset, request.EndDateOffset);
         string ordering = BuildOrderByClause(request.SortBy, request.SortAsc);
-        
+
         string sql = @$"SELECT {columns}
             FROM Transactions
             JOIN Clients ON Transactions.ClientId = Clients.Id
@@ -34,7 +34,7 @@ public class GetTransactionsClientsQueryHandler(
         return await dbConnection.QueryAsync<TransactionExportDto>(sql);
     }
 
-    private string BuildSelectClause(List<string> requestedColumns)
+    private string BuildSelectClause(IEnumerable<string> requestedColumns)
     {
         StringBuilder sb = new();
         foreach (string column in requestedColumns)
@@ -54,7 +54,7 @@ public class GetTransactionsClientsQueryHandler(
         }
     }
 
-    private static string BuildWhereClause( bool useUserTimeZone, DateFilterParameters? startDate,
+    private static string BuildWhereClause(bool useUserTimeZone, DateFilterParameters? startDate,
         DateFilterParameters? endDate, string startDateOffset, string endDateOffset)
     {
         return useUserTimeZone
@@ -82,18 +82,18 @@ public class GetTransactionsClientsQueryHandler(
             OR (DATEPART(YYYY, TransactionDate) = {date.Year} AND DATEPART(MM, TransactionDate) = {date.Month} AND DATEPART(DD, TransactionDate) {sign}= {date.Day}))";
     }
 
-    private static string FilterByUserTimeZone( DateFilterParameters? startDate,
+    private static string FilterByUserTimeZone(DateFilterParameters? startDate,
         DateFilterParameters? endDate, string startDateOffset, string endDateOffset)
     {
         if (startDate == null && endDate == null)
         {
             return string.Empty;
         }
-        else if(startDate != null && endDate != null)
+        else if (startDate != null && endDate != null)
         {
             return GetConditionOffsetBothLimits(startDate, endDate, startDateOffset, endDateOffset);
         }
-        else if(startDate != null)
+        else if (startDate != null)
         {
             return GetConditionOffsetEitherLimit(startDate, startDateOffset);
         }
@@ -123,7 +123,7 @@ public class GetTransactionsClientsQueryHandler(
 
     private static string BuildOrderByClause(string? sortBy, bool sortAsc)
     {
-        if(sortBy == null)
+        if (sortBy == null)
         {
             return string.Empty;
         }

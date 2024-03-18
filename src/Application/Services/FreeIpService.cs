@@ -14,7 +14,10 @@ public class FreeIpService(
     ) : IIpService
 {
     private readonly HttpClient httpClient = httpClient;
-    private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions jsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
     private string BaseURL => configuration.GetSection("FreeIp")["BaseUrl"] ?? "https://freeipapi.com/api/json";
 
     /// <inheritdoc cref="IIpService.GetIpAsync(IPAddress?, CancellationToken)"/>
@@ -22,30 +25,40 @@ public class FreeIpService(
     {
         string? ipv4 = ip?.MapToIPv4().ToString();
         if (!IsValidIpv4(ipv4, out bool isLocalNetwork))
+        {
             return new OperationResult<string>(true) { Payload = ipv4 };
+        }
         else if (isLocalNetwork)
+        {
             return await GetServerIpAsync(cancellationToken);
+        }
         else
+        {
             return new OperationResult<string>(false, "IP cannot be determined.");
+        }
     }
 
     private static bool IsValidIpv4(string? ipv4, out bool isLocalNetwork)
     {
         isLocalNetwork = false;
         if (ipv4 == null)
+        {
             return false;
-
+        }
         string[] segments = ipv4.Split('.');
         if (segments.Length != 4)
+        {
             return false;
-
+        }
         int[] values = new int[4];
 
         for (int i = 0; i < 4; i++)
         {
             values[i] = int.Parse(segments[i]);
             if (values[i] < 0 || values[i] > 255)
+            {
                 return false;
+            }
         }
         isLocalNetwork = IsLocalNetwork(values);
         return true;
@@ -86,8 +99,9 @@ public class FreeIpService(
             using var stream = response.Content.ReadAsStream(cancellationToken);
             var deserializedResponse = JsonSerializer.Deserialize<FreeIpResponse>(stream, jsonSerializerOptions);
             if (deserializedResponse == null)
+            {
                 return new OperationResult<string>(false, "Cannot process the external API response");
-
+            }
             return new OperationResult<string>(true) { Payload = deserializedResponse.IpAddress };
         }
         catch (TaskCanceledException)

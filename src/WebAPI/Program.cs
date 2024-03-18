@@ -34,7 +34,9 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
     if (context.Database.IsRelational() && context.Database.GetPendingMigrations().Any())
+    {
         await context.Database.MigrateAsync();
+    }
 }
 
 app.UseSwagger();

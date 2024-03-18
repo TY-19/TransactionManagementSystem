@@ -61,7 +61,7 @@ public partial class GetTransactionsClientsQueryValidator : AbstractValidator<Ge
     private bool ValidateReadableOffset(string offset)
     {
         Match match = OffsetRegex().Match(offset);
-        if(match.Success
+        if (match.Success
             && int.TryParse(match.Groups[1].Value, out int hours)
             && int.TryParse(match.Groups[2].Value, out int minutes))
         {

@@ -203,7 +203,7 @@ public class CsvHelper(
     private async Task<DateTimeOffset?> ParseDateAsync(string toParse, decimal latitude,
         decimal longitude, CancellationToken cancellationToken)
     {
-        if(!DateTime.TryParseExact(toParse, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture.DateTimeFormat,
+        if (!DateTime.TryParseExact(toParse, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture.DateTimeFormat,
             DateTimeStyles.None, out var localDateTime))
         {
             _errors.Add(BuildErrorMessage(TransactionPropertyName.TransactionDate, toParse,

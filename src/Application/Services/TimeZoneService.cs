@@ -16,7 +16,10 @@ public class TimeZoneService(
     ) : ITimeZoneService
 {
     private readonly HttpClient httpClient = httpClient;
-    private readonly JsonSerializerOptions jsonSerializerOptions = new() { PropertyNameCaseInsensitive = true };
+    private readonly JsonSerializerOptions jsonSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
     private string BaseUrl => configuration.GetSection("TimeApi")["BaseUrl"] ?? "https://timeapi.io/api/TimeZone";
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZone(string?, bool, string?, CancellationToken)"/>
@@ -24,17 +27,18 @@ public class TimeZoneService(
         IPAddress? ip, CancellationToken cancellationToken)
     {
         if (ianaName != null)
+        {
             return await GetTimeZoneByIanaNameAsync(ianaName, cancellationToken);
-
+        }
         if (useUserTimeZone)
         {
             OperationResult<string> ipsResponse = await ipService.GetIpAsync(ip, cancellationToken);
             if (!ipsResponse.Succeeded)
+            {
                 return new OperationResult<TimeZoneDetails>(false, ipsResponse.Message ?? "Ip service error");
-
+            }
             return await GetTimeZoneByIpAsync(ipsResponse.Payload, cancellationToken);
         }
-
 
         return new OperationResult<TimeZoneDetails>(true);
     }
@@ -67,8 +71,9 @@ public class TimeZoneService(
         {
             response = await httpClient.GetAsync(url, cancellationToken);
             if (response.StatusCode == HttpStatusCode.NotFound)
+            {
                 return new OperationResult<TimeZoneDetails>(false, "Time zone was not found.");
-
+            }
             response.EnsureSuccessStatusCode();
         }
         catch (TaskCanceledException)
@@ -86,8 +91,9 @@ public class TimeZoneService(
             using var stream = response.Content.ReadAsStream(cancellationToken);
             var deserializedResponse = JsonSerializer.Deserialize<TimeZoneApiResponse>(stream, jsonSerializerOptions);
             if (deserializedResponse == null)
+            {
                 return new OperationResult<TimeZoneDetails>(false, "Cannot process the external API response.");
-
+            }
             return new OperationResult<TimeZoneDetails>(true, ToTimeZoneDetails(deserializedResponse));
         }
         catch (TaskCanceledException)
