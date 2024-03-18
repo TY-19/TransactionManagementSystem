@@ -39,16 +39,20 @@ public class TimeZoneHelper(
     public string GetReadableOffset(DateTimeOffset dateTime, TimeZoneDetails userTimeZone)
     {
         int offset = GetOffsetInSeconds(dateTime, userTimeZone);
-
-        char sign = offset >= 0 ? '+' : '-';
-        int hours = Math.Abs(offset / 3600);
-        int minutes = Math.Abs((offset % 3600) / 60);
+        return GetReadableOffset(offset);
+    }
+    /// <inheritdoc cref="ITimeZoneHelper.GetReadableOffset(int)"/>
+    public string GetReadableOffset(int offsetSeconds)
+    {
+        char sign = offsetSeconds >= 0 ? '+' : '-';
+        int hours = Math.Abs(offsetSeconds / 3600);
+        int minutes = Math.Abs((offsetSeconds % 3600) / 60);
         return $"{sign}{hours:D2}:{minutes:D2}";
     }
 
     private bool ResetTimeZone(TimeZoneDetails? userTimeZone)
     {
-        if (userTimeZone?.TimeZone == _timeZone?.TimeZone)
+        if (userTimeZone?.TimeZoneName == _timeZone?.TimeZoneName)
         {
             return false;
         }
@@ -101,11 +105,11 @@ public class TimeZoneHelper(
             return _tzInfo;
         }
 
-        if (TimeZoneInfo.TryFindSystemTimeZoneById(_timeZone.TimeZone, out TimeZoneInfo? tzInfo))
+        if (TimeZoneInfo.TryFindSystemTimeZoneById(_timeZone.TimeZoneName, out TimeZoneInfo? tzInfo))
         {
             _tzInfo = tzInfo;
         }
-        else if (_knownTimeZoneAliases.TryGetValue(_timeZone.TimeZone, out string? alias)
+        else if (_knownTimeZoneAliases.TryGetValue(_timeZone.TimeZoneName, out string? alias)
             && TimeZoneInfo.TryFindSystemTimeZoneById(alias, out tzInfo))
         {
             _tzInfo = tzInfo;
@@ -114,20 +118,21 @@ public class TimeZoneHelper(
     }
     private int RoughlyDetermineStandardOrDst(DateTimeOffset dateTime)
     {
-        if (_timeZone == null || !_timeZone.HasDayLightSaving)
+        if (_timeZone == null || !_timeZone.HasDayLightSaving
+            || _timeZone.DstStart == null || _timeZone.DstEnd == null)
         {
             return _stdOffsetSeconds;
         }
 
-        _logger.LogWarning("DST rules cannot be resolved for the time zone {timezone}.", _timeZone.TimeZone);
-        _logger.LogWarning("The approximate dates for the start and end of daylight saving time will be used..");
+        _logger.LogWarning("DST rules cannot be resolved for the time zone {timezone}.", _timeZone.TimeZoneName);
+        _logger.LogWarning("The approximate dates for the start and end of daylight saving time will be used.");
 
         int transactionYear = dateTime.Year;
 
-        int dstStartMonth = _timeZone.DstStart?.Month ?? 3;
-        int dstStartDay = _timeZone.DstStart?.Day ?? 20;
-        int dstEndMonth = _timeZone.DstEnd?.Month ?? 10;
-        int dstEndDay = _timeZone.DstEnd?.Day ?? 20;
+        int dstStartMonth = _timeZone.DstStart.Value.Month;
+        int dstStartDay = _timeZone.DstStart.Value.Day;
+        int dstEndMonth = _timeZone.DstEnd.Value.Month;
+        int dstEndDay = _timeZone.DstEnd.Value.Day;
 
         var dstApproxStart = new DateTimeOffset(transactionYear, dstStartMonth, dstStartDay,
             3, 0, 0, TimeSpan.FromSeconds(_stdOffsetSeconds));

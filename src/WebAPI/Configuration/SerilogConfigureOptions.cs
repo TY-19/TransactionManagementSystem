@@ -21,6 +21,7 @@ public class SerilogConfigureOptions(IConfiguration configuration) : IConfigureO
                 sinkOptions: new MSSqlServerSinkOptions()
                 {
                     TableName = "LogEvents",
+                    AutoCreateSqlDatabase = true,
                     AutoCreateSqlTable = true,
                 })
             .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information);

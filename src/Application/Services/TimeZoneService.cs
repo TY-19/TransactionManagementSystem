@@ -20,11 +20,11 @@ public class TimeZoneService(
     private string BaseUrl => configuration.GetSection("TimeApi")["BaseUrl"] ?? "https://timeapi.io/api/TimeZone";
 
     /// <inheritdoc cref="ITimeZoneService.GetTimeZone(string?, bool, string?, CancellationToken)"/>
-    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneAsync(string? IanaName, bool useUserTimeZone,
+    public async Task<OperationResult<TimeZoneDetails>> GetTimeZoneAsync(string? ianaName, bool useUserTimeZone,
         IPAddress? ip, CancellationToken cancellationToken)
     {
-        if (IanaName != null)
-            return await GetTimeZoneByIanaNameAsync(IanaName, cancellationToken);
+        if (ianaName != null)
+            return await GetTimeZoneByIanaNameAsync(ianaName, cancellationToken);
 
         if (useUserTimeZone)
         {
@@ -105,7 +105,7 @@ public class TimeZoneService(
     {
         return new TimeZoneDetails()
         {
-            TimeZone = response.TimeZone,
+            TimeZoneName = response.TimeZone,
             StandardUtcOffsetSeconds = response.StandardUtcOffset.Seconds,
             HasDayLightSaving = response.HasDayLightSaving,
             DstOffsetToUtcSeconds = response.DstInterval?.DstOffsetToUtc.Seconds,

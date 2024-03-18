@@ -86,18 +86,12 @@ public class TransactionService(
         DateFilterParameters? endDate, CancellationToken cancellationToken)
     {
         var requestedColumns = propertyManager.GetPropertiesTypes(columns.Split(','));
-        var sortColumn = propertyManager.GetProperty(sortBy);
 
-        IEnumerable<TransactionExportDto> transactions = await mediator.Send(
-            new GetTransactionsClientsQuery()
-            {
-                RequestedColumns = GetDatabaseColumnNames(requestedColumns, timeZoneDetails),
-                SortBy = sortColumn == null ? null : propertyManager.GetDatabaseColumnName(sortColumn.Value),
-                SortAsc = sortAsc,
-                TimeZone = timeZoneDetails,
-                StartDate = startDate,
-                EndDate = endDate
-            }, cancellationToken);
+        GetTransactionsClientsQuery query = PrepareQuery(requestedColumns, sortBy, sortAsc,
+            timeZoneDetails, startDate, endDate);
+        
+        IEnumerable<TransactionExportDto> transactions = await mediator.Send(query, cancellationToken);
+        
         transactions = ApplyDstRules(transactions, timeZoneDetails, startDate, endDate, cancellationToken);
 
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedColumns, cancellationToken);
@@ -114,26 +108,15 @@ public class TransactionService(
         else if (endDate != null)
             name += $"_before_{endDate.Year}_{endDate.Month}_{endDate.Day}";
 
-        name += timeZoneDetails == null ? "_clients_time_zones" : $"_{timeZoneDetails.TimeZone}_time_zone";
+        name += timeZoneDetails == null ? "_clients_time_zones" : $"_{timeZoneDetails.TimeZoneName}_time_zone";
         name += xlsxHelper.ExcelFileExtension;
 
         return name;
     }
 
-    public string GetExcelFileMimeType() => xlsxHelper.ExcelMimeType;
-
-    private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames, TimeZoneDetails? timeZoneDetails)
+    public string GetExcelFileMimeType()
     {
-        var dbColumns = propertyManager.GetDatabaseColumnNames(propertyNames);
-        if (timeZoneDetails != null)
-        {
-            // Case when offset will be calculated for the current user time zone.
-            // No need to obtain from the database offset in the clients' time zones.
-            string? offsetName = propertyManager.GetDatabaseColumnName(TransactionPropertyName.Offset);
-            if (offsetName != null && dbColumns.Contains(offsetName))
-                dbColumns.Remove(offsetName);
-        }
-        return dbColumns;
+        return xlsxHelper.ExcelMimeType;
     }
 
     private IEnumerable<TransactionExportDto> ApplyDstRules(IEnumerable<TransactionExportDto> transactions,
@@ -173,5 +156,73 @@ public class TransactionService(
         }
 
         return transactionList;
+    }
+
+    private GetTransactionsClientsQuery PrepareQuery(
+        List<TransactionPropertyName> requestedColumns,
+        string? sortBy,
+        bool sortAsc,
+        TimeZoneDetails? timeZoneDetails,
+        DateFilterParameters? startDate,
+        DateFilterParameters? endDate
+        )
+    {
+        List<string> columns = GetDatabaseColumnNames(requestedColumns, timeZoneDetails)
+            .Distinct().ToList();
+        TransactionPropertyName? sortProperty = propertyManager.GetProperty(sortBy);
+        string? sortColumn = sortProperty == null ? null
+            : propertyManager.GetDatabaseColumnName(sortProperty.Value);
+
+        int stdOffset = timeZoneDetails?.StandardUtcOffsetSeconds ?? 0;
+        int? dstOffset = timeZoneDetails != null && timeZoneDetails.HasDayLightSaving
+            ? timeZoneDetails.DstOffsetToUtcSeconds!.Value
+            : null;
+
+        int startOffset = ChooseOffsetToUse(stdOffset, dstOffset, true);
+        int endOffset = ChooseOffsetToUse(stdOffset, dstOffset, false);
+        return new GetTransactionsClientsQuery()
+        {
+            ColumnNames = columns,
+            SortBy = sortColumn,
+            SortAsc = sortAsc,
+            UseUserTimeZone = timeZoneDetails != null,
+            StartDate = startDate,
+            EndDate = endDate,
+            StartDateOffset = timeZoneHelper.GetReadableOffset(startOffset),
+            EndDateOffset = timeZoneHelper.GetReadableOffset(endOffset),
+        };
+    }
+
+    private List<string> GetDatabaseColumnNames(List<TransactionPropertyName> propertyNames, TimeZoneDetails? timeZoneDetails)
+    {
+        var dbColumns = propertyManager.GetDatabaseColumnNames(propertyNames);
+        if (timeZoneDetails != null)
+        {
+            // Case when offset will be calculated for the current user time zone.
+            // No need to obtain from the database offset in the clients' time zones.
+            string? offsetName = propertyManager.GetDatabaseColumnName(TransactionPropertyName.Offset);
+            if (offsetName != null && dbColumns.Contains(offsetName))
+            {
+                dbColumns.Remove(offsetName);
+            }
+        }
+        return dbColumns;
+    }
+
+    private static int ChooseOffsetToUse(int standardOffset, int? dstOffset, bool isStartDate)
+    {
+        if (dstOffset == null)
+        {
+            return standardOffset;
+        }
+        else
+        {
+            // There are edge cases when dstOffset is smaller than standardOffset
+            // so comparison is necessary. For example 'Europe/Dublin' time zone has Winter time
+            // that external API treats as negative 1 hour of daylight saving.
+            return isStartDate
+                ? Math.Max(standardOffset, dstOffset.Value)
+                : Math.Min(standardOffset, dstOffset.Value);
+        }
     }
 }

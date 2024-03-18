@@ -2,7 +2,7 @@
 
 public class TransactionExportDto
 {
-    public string? TransactionId { get; set; } = null!;
+    public string? TransactionId { get; set; }
     public string? Name { get; set; } = null!;
     public string? Email { get; set; } = null!;
     public decimal? Latitude { get; set; }

@@ -23,7 +23,7 @@ public class CsvHelper(
         public const string InvalidDecimal = "The value is not a valid decimal.";
         public const string LatitudeOutOfRange = "Latitude must be between -90 and 90 degrees.";
         public const string LongitudeOutOfRange = "Longitude must be between -180 and 180 degrees.";
-        public const string InvalidDateFormat = "The date is not in a valid format. Dates should be provided in the following format: \"yyyy-MM-dd HH:mm:ss\".";
+        public const string InvalidDateFormat = "The date is not in a valid format. Dates should be provided in the following format: 'yyyy-MM-dd HH:mm:ss'.";
         public const string TimezoneResolutionError = "The external API cannot resolve a timezone";
         public const string TimezoneApiError = "An error occurred while determining the time zone. Error details:";
     }
@@ -203,18 +203,8 @@ public class CsvHelper(
     private async Task<DateTimeOffset?> ParseDateAsync(string toParse, decimal latitude,
         decimal longitude, CancellationToken cancellationToken)
     {
-        DateTime localDateTime;
-        try
-        {
-            localDateTime = DateTime.ParseExact(toParse, "yyyy-MM-dd HH:mm:ss",
-                CultureInfo.InvariantCulture.DateTimeFormat);
-        }
-        catch (ArgumentNullException)
-        {
-            _errors.Add(BuildErrorMessage(TransactionPropertyName.TransactionDate, toParse));
-            return null;
-        }
-        catch (FormatException)
+        if(!DateTime.TryParseExact(toParse, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture.DateTimeFormat,
+            DateTimeStyles.None, out var localDateTime))
         {
             _errors.Add(BuildErrorMessage(TransactionPropertyName.TransactionDate, toParse,
                 Messages.InvalidDateFormat));
@@ -245,8 +235,8 @@ public class CsvHelper(
             return null;
         }
     }
-    private string BuildErrorMessage(TransactionPropertyName property,
-        string value, string? details = null)
+    private string BuildErrorMessage(TransactionPropertyName property, string value,
+        string? details = null)
     {
         string? propName = _propertyManager.GetDisplayedName(property);
         return $"Cannot parse '{propName}' with value '{value}'. {(details ?? "")} ";

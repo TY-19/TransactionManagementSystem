@@ -30,4 +30,10 @@ public interface ITimeZoneHelper
     /// <param name="userTimeZone">The time zone to calculate the offset.</param>
     /// <returns>The offset in the format '+00:00'.</returns>
     string GetReadableOffset(DateTimeOffset dateTime, TimeZoneDetails userTimeZone);
+    /// <summary>
+    /// Get offset in the format '+00:00'.
+    /// </summary>
+    /// <param name="offsetSeconds">Offset in seconds.</param>
+    /// <returns>The offset in the format '+00:00'.</returns>
+    string GetReadableOffset(int offsetSeconds);
 }

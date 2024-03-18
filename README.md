@@ -62,7 +62,8 @@ To start the application, you have several options:
 To check if Daylight Saving Time (DST) is applied, the TimeZoneInfo class is used to search for the time zone with the specific IANA name. Depending on the operating system, some IANA time zone names may be missing from the system registry. In such cases, fallback values for the time zone IDs can be specified in the `timezone-aliases.json` file.  
 The functionality was tested on the following operating systems:
 - Ubuntu 22.04, which contains all IANA names, thus no fallback values were necessary.
-- Windows 10 (as of March 15, 2024), is missing 9 time zone IANA names, for which fallback values are provided in the `timezone-aliases.json` file by default. If the system lacks information about a specific time zone IANA and no fallback value is provided, daylight saving time calculation rules will be approximated.
+- Windows 10 (as of March 15, 2024), is missing 9 time zone IANA names. For 8 of them fallback values are provided in the `timezone-aliases.json` file by default. The timezone "Antarctica/Troll" is not supported on Windows OS at the moment.  
+If the system lacks information about a specific time zone IANA and no fallback value is provided, daylight saving time calculation rules will be approximated.
 
 #### Current User Time Zone
 The time zone of the current user is determined based on their IP address. If the user accesses the application locally (server and user are in the same network), then the server IP is used.
