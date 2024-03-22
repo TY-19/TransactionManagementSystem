@@ -51,11 +51,7 @@ To start the application, you have several options:
     - Time zone of the client making the transaction, based on their coordinates (adjusts for daylight saving time rules).
     - Time zone of the current API user (calculated based on user IP), showing the time in the user's time zone when the transaction was completed (adjusts for user time zone DST).
     - Specified time zone: works like the users time zone, but with an explicitly provided time zone [IANA](https://www.iana.org/time-zones) name.
-- Get transactions with predefined parameters:
-    - Transactions completed in 2023 (clients' local time zones).
-    - Transactions completed in 2023 (current API user's time zone).
-    - Transactions completed in January 2024 (clients' local time zones).
-    - Transactions completed in January 2024 (current API user's time zone).
+- Get list of transactions with the transaction date in the specified range.
 
 ### Impementation Details
 #### DST and TimeZoneInfo
