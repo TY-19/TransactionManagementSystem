@@ -1,6 +1,6 @@
 ﻿namespace TMS.Application.Models;
 
-public class TransactionImportDto
+public class TransactionDto
 {
     public string TransactionId { get; set; } = null!;
     public string Name { get; set; } = null!;

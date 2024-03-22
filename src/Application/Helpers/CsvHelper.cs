@@ -31,26 +31,26 @@ public class CsvHelper(
     private List<string> _errors = [];
 
     /// <inheritdoc cref="ICsvHelper.ParseLineAsync(string?, CancellationToken)"/>
-    public async Task<OperationResult<TransactionImportDto>> ParseLineAsync(
+    public async Task<OperationResult<TransactionDto>> ParseLineAsync(
         string? csvLine, CancellationToken cancellationToken)
     {
         _errors = [];
         if (csvLine.IsNullOrEmpty())
         {
-            return new OperationResult<TransactionImportDto>(true, Messages.StringEmpty);
+            return new OperationResult<TransactionDto>(true, Messages.StringEmpty);
         }
 
         string[] values = csvLine!.Split(',');
         if (values.Length > 0 && IsHeader(values[0].Trim()))
         {
-            return new OperationResult<TransactionImportDto>(true, Messages.StringHeader);
+            return new OperationResult<TransactionDto>(true, Messages.StringHeader);
         }
         if (values.Length != 7)
         {
-            return new OperationResult<TransactionImportDto>(false, Messages.IncorrectArgumentsNumber);
+            return new OperationResult<TransactionDto>(false, Messages.IncorrectArgumentsNumber);
         }
 
-        TransactionImportDto transaction = new();
+        TransactionDto transaction = new();
         if (TryParseTransactionId(values[0].Trim(), out string transactionId))
         {
             transaction.TransactionId = transactionId;
@@ -82,8 +82,8 @@ public class CsvHelper(
             transaction.TransactionDate = date.Value;
         }
         return _errors.Count == 0
-            ? new OperationResult<TransactionImportDto>(true, transaction)
-            : new OperationResult<TransactionImportDto>(false, ErrorsToString());
+            ? new OperationResult<TransactionDto>(true, transaction)
+            : new OperationResult<TransactionDto>(false, ErrorsToString());
     }
     private bool IsHeader(string toCheck)
     {

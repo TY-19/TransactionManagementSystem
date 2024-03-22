@@ -58,4 +58,12 @@ public interface ITransactionService
     /// </summary>
     /// <returns>The MIME Type.</returns>
     string GetExcelFileMimeType();
+
+    /// <summary>
+    /// Allows to get transactions for the specified period of time.
+    /// </summary>
+    /// <param name="dateFrom">The start of the period.</param>
+    /// <param name="dateTo">The end of the period.</param>
+    /// <returns>List of transactions in the specified time period.</returns>
+    Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(DateTimeOffset dateFrom, DateTimeOffset dateTo);
 }

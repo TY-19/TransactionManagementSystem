@@ -6,6 +6,7 @@ using TMS.Application.Commands.Transaction.AddUpdateTransaction;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Application.Queries.TransactionClient.GetTransactionsClients;
+using TMS.Application.Queries.TransactionClient.GetTransactionsClientsByTimePeriod;
 using TMS.Domain.Enums;
 
 namespace TMS.Application.Services;
@@ -32,7 +33,7 @@ public class TransactionService(
         {
             row++;
             string? line = await reader.ReadLineAsync(cancellationToken);
-            OperationResult<TransactionImportDto> parsedResponse = 
+            OperationResult<TransactionDto> parsedResponse =
                 await csvParser.ParseLineAsync(line, cancellationToken);
             if (!parsedResponse.Succeeded)
             {
@@ -47,7 +48,7 @@ public class TransactionService(
             }
             try
             {
-                TransactionImportDto transaction = parsedResponse.Payload;
+                TransactionDto transaction = parsedResponse.Payload;
                 await mediator.Send(new AddUpdateClientCommand()
                 {
                     Name = transaction.Name,
@@ -130,6 +131,17 @@ public class TransactionService(
     public string GetExcelFileMimeType()
     {
         return xlsxHelper.ExcelMimeType;
+    }
+
+    /// <inheritdoc cref="ITransactionService.GetForTimePeriodAsync(DateTimeOffset, DateTimeOffset)"/>
+    public async Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(
+        DateTimeOffset dateFrom, DateTimeOffset dateTo)
+    {
+        return await mediator.Send(new GetTransactionsClientsByTimePeriodQuery()
+        {
+            DateFrom = dateFrom,
+            DateTo = dateTo
+        });
     }
 
     private IEnumerable<TransactionExportDto> ApplyDstRules(IEnumerable<TransactionExportDto> transactions,

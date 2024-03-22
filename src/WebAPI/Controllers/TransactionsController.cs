@@ -145,91 +145,28 @@ public class TransactionsController(
         MemoryStream fileStream = await transactionService
             .ExportToExcelAsync(columns, sortBy, sortAsc, timeZone, startDate, endDate,
             Request.HttpContext.RequestAborted);
-        
+
         return File(fileStream, fileType, fileName);
     }
 
     /// <summary>
-    ///     Allows exporting transactions completed in 2023, adjusted to the local time of each client.
+    /// Allows to get transactions with the transaction date in the specified range.
     /// </summary>
+    /// <param name="dateFrom">Start of the range to get transactions.</param>
+    /// <param name="dateTo">End of the range to get transactions.</param>
+    /// <returns>List of transactions.</returns>
+    /// <response code="200">Returns the list of transactions in the specified range.</response>
     /// <remarks>
-    ///     This is a predefined endpoint tailored to the specific task requirement of providing
-    ///     transactions for 2023 in clients' respective time zones.
-    /// 
-    ///     For further customization of queries, use the 'api/transactions/export/clients' endpoint.
+    ///     Example of a request:
+    ///     
+    ///     /api/transactions?dateFrom=2024-01-10T15:20:45Z&amp;dateTo=2024-02-22T19:55:18Z
     /// </remarks>
-    /// <response code="200">Returns the requested file with transactions.</response>
-    /// <response code="400">Error message.</response>
-    [Route("export/clients_tz/2023")]
+    [Route("")]
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> ExportTransactionsToExcel2023LocalTime()
+    public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionsForTimePeriod(
+        DateTimeOffset dateFrom, DateTimeOffset dateTo)
     {
-        return await ExportTransactionsToExcel(startYear: 2023, endYear: 2023);
-    }
-
-    /// <summary>
-    ///     Allows exporting transactions completed in January 2024, adjusted to the local time
-    ///     of each client.
-    /// </summary>
-    /// <remarks>
-    ///     This is a predefined endpoint tailored to the specific task requirement of providing
-    ///     transactions for January 2024 in clients' respective time zones.
-    /// 
-    ///     For further customization of queries, use the 'api/transactions/export/clients' endpoint.
-    /// </remarks>
-    /// <response code="200">Returns the requested file with transactions.</response>
-    /// <response code="400">Error message.</response>
-    [Route("export/clients_tz/2024/01")]
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> ExportTransactionsToExcel202401ClientsTime()
-    {
-        return await ExportTransactionsToExcel(startYear: 2024, startMonth: 01, endYear: 2024, endMonth: 01);
-    }
-
-    /// <summary>
-    ///     Allows exporting transactions completed in 2023, adjusted to the time zone
-    ///     of the current API user based on their IP address.
-    /// </summary>
-    /// <remarks>
-    ///     This is a predefined endpoint tailored to the specific task requirement of providing
-    ///     transactions for 2023 in the time zone of the current API user.
-    /// 
-    ///     For further customization of queries, use the 'api/transactions/export/clients' endpoint.
-    /// </remarks>
-    /// <response code="200">Returns the requested file with transactions.</response>
-    /// <response code="400">Error message.</response>
-    [Route("export/my_tz/2023")]
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> ExportTransactionsToExcel2023UserTime()
-    {
-        return await ExportTransactionsToExcel(useUserTimeZone: true, startYear: 2023, endYear: 2023);
-    }
-
-    /// <summary>
-    ///     Allows exporting transactions completed in the January 2024, adjusted to the time zone
-    ///     of the current API user based on their IP address.
-    /// </summary>
-    /// <remarks>
-    ///     This is a predefined endpoint tailored to the specific task requirement of providing
-    ///     transactions for the year January 2024 in the time zone of the current API user.
-    /// 
-    ///     For further customization of queries, use the 'api/transactions/export/clients' endpoint.
-    /// </remarks>
-    /// <response code="200">Returns the requested file with transactions.</response>
-    /// <response code="400">Error message.</response>
-    [Route("export/my_tz/2024/01")]
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult> ExportTransactionsToExcel202401UserTime()
-    {
-        return await ExportTransactionsToExcel(useUserTimeZone: true,
-            startYear: 2024, startMonth: 01, endYear: 2024, endMonth: 01);
+        return Ok(await transactionService.GetForTimePeriodAsync(dateFrom, dateTo));
     }
 }
