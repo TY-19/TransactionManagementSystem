@@ -5,6 +5,6 @@ namespace TMS.Application.Queries.TransactionClient.GetTransactionsClientsByTime
 
 public class GetTransactionsClientsByTimePeriodQuery : IRequest<IEnumerable<TransactionDto>>
 {
-    public DateTimeOffset DateFrom { get; set; } = DateTimeOffset.MinValue;
-    public DateTimeOffset DateTo { get; set; } = DateTimeOffset.MaxValue;
+    public DateOnly DateFrom { get; set; } = DateOnly.MinValue;
+    public DateOnly DateTo { get; set; } = DateOnly.MaxValue;
 }

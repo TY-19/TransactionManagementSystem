@@ -152,20 +152,20 @@ public class TransactionsController(
     /// <summary>
     /// Allows to get transactions with the transaction date in the specified range.
     /// </summary>
-    /// <param name="dateFrom">Start of the range to get transactions.</param>
-    /// <param name="dateTo">End of the range to get transactions.</param>
+    /// <param name="dateFrom">Start of the range to get transactions. Format yyyy-MM-dd</param>
+    /// <param name="dateTo">End of the range to get transactions. Format yyyy-MM-dd</param>
     /// <returns>List of transactions.</returns>
     /// <response code="200">Returns the list of transactions in the specified range.</response>
     /// <remarks>
     ///     Example of a request:
     ///     
-    ///     /api/transactions?dateFrom=2024-01-10T15:20:45Z&amp;dateTo=2024-02-22T19:55:18Z
+    ///     /api/transactions?dateFrom=2024-01-10&amp;dateTo=2024-02-22
     /// </remarks>
     [Route("")]
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionsForTimePeriod(
-        DateTimeOffset dateFrom, DateTimeOffset dateTo)
+        DateOnly dateFrom, DateOnly dateTo)
     {
         return Ok(await transactionService.GetForTimePeriodAsync(dateFrom, dateTo));
     }

@@ -9,11 +9,11 @@ public class GetTransactionsClientsByTimePeriodQueryValidator
     {
         RuleFor(tc => tc.DateFrom)
             .NotNull()
-            .GreaterThanOrEqualTo(DateTimeOffset.MinValue)
+            .GreaterThanOrEqualTo(DateOnly.MinValue)
             .LessThanOrEqualTo(tc => tc.DateTo);
         RuleFor(tc => tc.DateTo)
             .NotNull()
             .GreaterThanOrEqualTo(tc => tc.DateFrom)
-            .LessThanOrEqualTo(DateTimeOffset.MaxValue);
+            .LessThanOrEqualTo(DateOnly.MaxValue);
     }
 }

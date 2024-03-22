@@ -133,9 +133,9 @@ public class TransactionService(
         return xlsxHelper.ExcelMimeType;
     }
 
-    /// <inheritdoc cref="ITransactionService.GetForTimePeriodAsync(DateTimeOffset, DateTimeOffset)"/>
+    /// <inheritdoc cref="ITransactionService.GetForTimePeriodAsync(DateOnly, DateOnly)"/>
     public async Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(
-        DateTimeOffset dateFrom, DateTimeOffset dateTo)
+        DateOnly dateFrom, DateOnly dateTo)
     {
         return await mediator.Send(new GetTransactionsClientsByTimePeriodQuery()
         {

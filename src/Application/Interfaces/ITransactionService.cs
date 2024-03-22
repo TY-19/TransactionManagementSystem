@@ -65,5 +65,5 @@ public interface ITransactionService
     /// <param name="dateFrom">The start of the period.</param>
     /// <param name="dateTo">The end of the period.</param>
     /// <returns>List of transactions in the specified time period.</returns>
-    Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(DateTimeOffset dateFrom, DateTimeOffset dateTo);
+    Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(DateOnly dateFrom, DateOnly dateTo);
 }

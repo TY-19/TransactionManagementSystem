@@ -14,13 +14,14 @@ public class GetTransactionsClientsByTimePeriodQueryHandler(
     {
         var parameters = new
         {
-            request.DateFrom,
-            request.DateTo
+            DateFrom = request.DateFrom.ToString("yyyy-MM-dd"),
+            DateTo = request.DateTo.ToString("yyyy-MM-dd")
         };
-        string sql = @$"SELECT t.TransactionId, c.Name, c.Email, t.Amount, t.TransactionDate, c.Latitude, c.Longitude
+        string sql = @$"
+            SELECT t.TransactionId, c.Name, c.Email, t.Amount, t.TransactionDate, c.Latitude, c.Longitude
             FROM Transactions t
             JOIN Clients c ON t.ClientId = c.Id
-            WHERE TransactionDate >= @DateFrom AND TransactionDate <= @DateTo
+            WHERE Convert(date, t.TransactionDate) BETWEEN @DateFrom AND @DateTo
             ORDER BY TransactionDate";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);
