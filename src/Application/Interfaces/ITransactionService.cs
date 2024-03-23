@@ -40,7 +40,7 @@ public interface ITransactionService
     /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>The Excel file containing the transactions.</returns>
     Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
-        DateFilterParameters? startDate, DateFilterParameters? endDate, CancellationToken cancellationToken);
+        DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken);
 
     /// <summary>
     /// Generates the name of the file based on requested details in the format:
@@ -50,8 +50,7 @@ public interface ITransactionService
     /// <param name="startDate">The start date for the file name.</param>
     /// <param name="endDate">The end date for the file name.</param>
     /// <returns>The file name.</returns>
-    string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateFilterParameters? startDate,
-        DateFilterParameters? endDate);
+    string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate);
 
     /// <summary>
     /// Allows to get the MIME type of the .xlsx file.

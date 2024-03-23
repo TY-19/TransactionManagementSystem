@@ -76,38 +76,16 @@ public class TransactionsController(
     /// time zone is used. To get all available time zones see
     /// <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
     /// </param>
-    /// <param name="startYear">
-    /// If set, transactions with transactionDate in this year (starting Jan. 1)
-    /// or following years will be returned.
-    /// Can be combined with startMonth and startDay to set a specific start date.
-    /// Can be combined with endYear, endMonth, endDay to narrow the date range.
+    /// <param name="startDate">
+    /// Date in format yyyy-MM-dd.
+    /// If set, transactions with transactionDate starting on this or following dates will be returned.
+    /// Can be combined with <paramref name="endDate"/> to narrow the date range.
     /// </param>
-    /// <param name="startMonth">
-    /// Specify the month of the startYear to narrow the filtering range.
-    /// Has no effect if startYear is not provided.
-    /// Can be combined with startDay to set a specific start day (otherwise starts with
-    /// the first day of the month).
-    /// </param>
-    /// <param name="startDay">
-    /// Specify the day of the startMonth to narrow the filtering range.
-    /// Has no effect if startYear is not provided.
-    /// </param>
-    /// <param name="endYear">
-    /// If set, transactions with transactionDate in this year (ending Dec. 31) or previous
-    /// years will be returned.
-    /// Can be combined with endMonth and endDay to set a specific date.
-    /// Can be combined with startYear, startMonth, startDay to narrow the date range.
+    /// <param name="endDate">
+    /// Date in format yyyy-MM-dd.
+    /// If set, transactions with transactionDate on this or previous dates will be returned.
+    /// Can be combined with <paramref name="startDate"/> to narrow the date range.
     /// </param> 
-    /// <param name="endMonth">
-    /// Specify the month of the endYear to narrow the filtering range.
-    /// Has no effect if endYear is not provided.
-    /// Can be combined with endDay to set a specific end day (otherwise ends with the last
-    /// day of the month).
-    /// </param>
-    /// <param name="endDay">
-    /// Specify the day of the endMonth to narrow the filtering range.
-    /// Has no effect if endYear is not provided.
-    /// </param>
     /// <remarks>
     /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
     /// startDay, endYear, endMonth, endDay parameters is calculated for the user's time zone.
@@ -123,8 +101,7 @@ public class TransactionsController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ExportTransactionsToExcel(string columns = defaultColumnsToExport,
         string? sortBy = null, bool sortAsc = true, bool useUserTimeZone = false,
-        string? timeZoneIanaName = null, int? startYear = null, int? startMonth = null,
-        int? startDay = null, int? endYear = null, int? endMonth = null, int? endDay = null)
+        string? timeZoneIanaName = null, DateOnly? startDate = null, DateOnly? endDate = null)
     {
         OperationResult<TimeZoneDetails> tzsResponse = await timeZoneService.GetTimeZoneAsync(
             timeZoneIanaName, useUserTimeZone, Request.HttpContext.Connection.RemoteIpAddress,
@@ -135,11 +112,6 @@ public class TransactionsController(
         }
 
         TimeZoneDetails? timeZone = tzsResponse.Payload;
-        DateFilterParameters? startDate = DateFilterParameters
-            .CreateFilterParameters(startYear, startMonth, startDay, true);
-        DateFilterParameters? endDate = DateFilterParameters
-            .CreateFilterParameters(endYear, endMonth, endDay, false);
-
         string fileName = transactionService.GetTransactionsFileName(timeZone, startDate, endDate);
         string fileType = transactionService.GetExcelFileMimeType();
         MemoryStream fileStream = await transactionService

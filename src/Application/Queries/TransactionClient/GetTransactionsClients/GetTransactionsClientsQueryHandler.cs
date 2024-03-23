@@ -54,36 +54,27 @@ public class GetTransactionsClientsQueryHandler(
         }
     }
 
-    private static string BuildWhereClause(bool useUserTimeZone, DateFilterParameters? startDate,
-        DateFilterParameters? endDate, string startDateOffset, string endDateOffset)
+    private static string BuildWhereClause(bool useUserTimeZone, DateOnly? startDate,
+        DateOnly? endDate, string startDateOffset, string endDateOffset)
     {
         return useUserTimeZone
             ? FilterByUserTimeZone(startDate, endDate, startDateOffset, endDateOffset)
             : FilterByClientDate(startDate, endDate);
     }
 
-    private static string FilterByClientDate(DateFilterParameters? startDate, DateFilterParameters? endDate)
+    private static string FilterByClientDate(DateOnly? startDate, DateOnly? endDate)
     {
         if (startDate == null && endDate == null)
         {
             return string.Empty;
         }
-        string startFilter = startDate == null ? "" : GetConditionNoOffset(startDate);
-        string composite = startDate != null && endDate != null ? " AND " : "";
-        string endFilter = endDate == null ? "" : GetConditionNoOffset(endDate);
-        return $"WHERE {startFilter}{composite}{endFilter}";
+        string start = (startDate ?? DateOnly.MinValue).ToString("yyyy-MM-dd");
+        string end = (endDate ?? DateOnly.MaxValue).ToString("yyyy-MM-dd");
+        return $"WHERE Convert(date, TransactionDate) BETWEEN '{start}' AND '{end}'";
     }
 
-    private static string GetConditionNoOffset(DateFilterParameters date)
-    {
-        string sign = date.IsStartDate ? ">" : "<";
-        return @$"(DATEPART(YYYY, TransactionDate) {sign} {date.Year}
-            OR (DATEPART(YYYY, TransactionDate) = {date.Year} AND DATEPART(MM, TransactionDate) {sign} {date.Month})
-            OR (DATEPART(YYYY, TransactionDate) = {date.Year} AND DATEPART(MM, TransactionDate) = {date.Month} AND DATEPART(DD, TransactionDate) {sign}= {date.Day}))";
-    }
-
-    private static string FilterByUserTimeZone(DateFilterParameters? startDate,
-        DateFilterParameters? endDate, string startDateOffset, string endDateOffset)
+    private static string FilterByUserTimeZone(DateOnly? startDate,
+        DateOnly? endDate, string startDateOffset, string endDateOffset)
     {
         if (startDate == null && endDate == null)
         {
@@ -91,27 +82,27 @@ public class GetTransactionsClientsQueryHandler(
         }
         else if (startDate != null && endDate != null)
         {
-            return GetConditionOffsetBothLimits(startDate, endDate, startDateOffset, endDateOffset);
+            return GetConditionOffsetBothLimits(startDate.Value, endDate.Value, startDateOffset, endDateOffset);
         }
         else if (startDate != null)
         {
-            return GetConditionOffsetEitherLimit(startDate, startDateOffset);
+            return GetConditionOffsetEitherLimit(startDate.Value, startDateOffset, true);
         }
         else
         {
-            return GetConditionOffsetEitherLimit(endDate!, endDateOffset);
+            return GetConditionOffsetEitherLimit(endDate!.Value, endDateOffset, false);
         }
     }
 
-    private static string GetConditionOffsetEitherLimit(DateFilterParameters date, string offset)
+    private static string GetConditionOffsetEitherLimit(DateOnly date, string offset, bool isStart)
     {
-        string sign = date.IsStartDate ? ">=" : "<=";
-        string time = date.IsStartDate ? "00:00:00" : "23:59:59";
+        string sign = isStart ? ">=" : "<=";
+        string time = isStart ? "00:00:00" : "23:59:59";
         return $"WHERE TransactionDate {sign} '{date.Year}-{date.Month}-{date.Day} {time} {offset}' ";
     }
 
-    private static string GetConditionOffsetBothLimits(DateFilterParameters startDate,
-        DateFilterParameters endDate, string startDateOffset, string endDateOffset)
+    private static string GetConditionOffsetBothLimits(DateOnly startDate,
+        DateOnly endDate, string startDateOffset, string endDateOffset)
     {
         string greaterOrEqual = ">=";
         string smallerOrEqual = "<=";
