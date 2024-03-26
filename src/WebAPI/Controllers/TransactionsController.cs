@@ -43,7 +43,7 @@ public class TransactionsController(
     }
 
     /// <summary>
-    /// Allows exporting transactions into an .xlsx file while offering extensive  customization
+    /// Allows exporting transactions into an .xlsx file while offering extensive customization
     /// options for specifying the transaction range.
     /// </summary>
     /// <param name="columns">
@@ -51,7 +51,7 @@ public class TransactionsController(
     /// transactionId, name, email, amount, transactionDate, offset, latitude, longitude.
     /// </param>
     /// <param name="sortBy">
-    /// Name of the column to sort by. 
+    /// Name of the column to sort by.
     /// Allowed columns (case insensitive): transactionId, name, email, amount, transactionDate,
     /// offset, latitude, longitude.
     /// Sorting order is defined by the value of the <paramref name="sortAsc"/>(ascending by default).
@@ -85,7 +85,7 @@ public class TransactionsController(
     /// Date in format yyyy-MM-dd.
     /// If set, transactions with transactionDate on this or previous dates will be returned.
     /// Can be combined with <paramref name="startDate"/> to narrow the date range.
-    /// </param> 
+    /// </param>
     /// <remarks>
     /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
     /// startDay, endYear, endMonth, endDay parameters is calculated for the user's time zone.
@@ -122,23 +122,75 @@ public class TransactionsController(
     }
 
     /// <summary>
-    /// Allows to get transactions with the transaction date in the specified range.
+    /// Allows to get the list of the transactions while offering extensive customization
+    /// options for specifying the transaction range.
     /// </summary>
-    /// <param name="dateFrom">Start of the range to get transactions. Format yyyy-MM-dd</param>
-    /// <param name="dateTo">End of the range to get transactions. Format yyyy-MM-dd</param>
-    /// <returns>List of transactions.</returns>
-    /// <response code="200">Returns the list of transactions in the specified range.</response>
+    /// <param name="columns">
+    /// Comma-separated column names in the desired order. Allowed columns (case insensitive):
+    /// transactionId, name, email, amount, transactionDate, offset, latitude, longitude.
+    /// </param>
+    /// <param name="sortBy">
+    /// Name of the column to sort by.
+    /// Allowed columns (case insensitive): transactionId, name, email, amount, transactionDate,
+    /// offset, latitude, longitude.
+    /// Sorting order is defined by the value of the <paramref name="sortAsc"/>(ascending by default).
+    /// </param>
+    /// <param name="sortAsc">
+    /// If set to true, exported transactions are sorted in ascending order;
+    /// otherwise, they are sorted in descending order.
+    /// Column to sort is specified in the <paramref name="sortBy"/>.
+    /// </param>
+    /// <param name="useUserTimeZone">
+    /// If set to true, the date and time values are adjusted to display in the time zone 
+    /// of the current user, determined based on their IP address.
+    /// If set to false, each transaction's time is displayed in its respective time zones.
+    /// This setting also defines the time zone to use when combined with properties that 
+    /// require filtering by date.
+    /// </param>
+    /// <param name="timeZoneIanaName">
+    /// Full IANA time zone name.
+    /// If set, the date and time values are adjusted to display in the time of this zone.
+    /// Takes precedence over <paramref name="useUserTimeZone"/> flag.
+    /// When combined with properties that require filtering by date, the time of the specified
+    /// time zone is used. To get all available time zones see
+    /// <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
+    /// </param>
+    /// <param name="startDate">
+    /// Date in format yyyy-MM-dd.
+    /// If set, transactions with transactionDate starting on this or following dates will be returned.
+    /// Can be combined with <paramref name="endDate"/> to narrow the date range.
+    /// </param>
+    /// <param name="endDate">
+    /// Date in format yyyy-MM-dd.
+    /// If set, transactions with transactionDate on this or previous dates will be returned.
+    /// Can be combined with <paramref name="startDate"/> to narrow the date range.
+    /// </param>
     /// <remarks>
-    ///     Example of a request:
-    ///     
-    ///     /api/transactions?dateFrom=2024-01-10&amp;dateTo=2024-02-22
+    /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
+    /// startDay, endYear, endMonth, endDay parameters is calculated for the user's time zone.
+    /// Otherwise, the date scope is defined for the time zone of each transaction separately.
+    /// The offset parameter overrides the time zone used for filtering and displaying transaction
+    /// data.
     /// </remarks>
+    /// <response code="200">Returns the list of the transactions.</response>
+    /// <response code="400">Error message.</response>
     [Route("")]
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactionsForTimePeriod(
-        DateOnly dateFrom, DateOnly dateTo)
+    public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions(
+        string columns = defaultColumnsToExport,
+        string? sortBy = null, bool sortAsc = true, bool useUserTimeZone = false,
+        string? timeZoneIanaName = null, DateOnly? startDate = null, DateOnly? endDate = null)
     {
-        return Ok(await transactionService.GetForTimePeriodAsync(dateFrom, dateTo));
+        OperationResult<TimeZoneDetails> tzsResponse = await timeZoneService.GetTimeZoneAsync(
+            timeZoneIanaName, useUserTimeZone, Request.HttpContext.Connection.RemoteIpAddress,
+            Request.HttpContext.RequestAborted);
+        if (!tzsResponse.Succeeded)
+        {
+            return BadRequest(tzsResponse.Message);
+        }
+
+        return Ok(await transactionService.GetTransactionsAsync(columns, sortBy, sortAsc,
+            tzsResponse.Payload, startDate, endDate, Request.HttpContext.RequestAborted));
     }
 }

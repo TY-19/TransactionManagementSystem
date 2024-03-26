@@ -20,23 +20,22 @@ public class AddUpdateTransactionCommandHandler(
         };
 
         string sql = @$"
-            IF EXISTS (SELECT 1 FROM Transactions WHERE TransactionId = @TransactionId)
-            BEGIN
-                UPDATE Transactions
-                SET ClientId = (SELECT Id FROM Clients WHERE Email = @ClientEmail),
-                    TransactionDate = @TransactionDate,
-                    Amount = @Amount
-                WHERE TransactionId = @TransactionId;
-            END
-            ELSE
-            BEGIN
-                INSERT INTO Transactions (TransactionId, ClientId, TransactionDate, Amount)
+            MERGE INTO Transactions
+            USING (VALUES (@TransactionId, @ClientEmail, @Amount, @TransactionDate))
+                AS source (TransactionId, ClientEmail, Amount, TransactionDate)
+            ON Transactions.TransactionId = source.TransactionId
+            WHEN MATCHED THEN
+                UPDATE SET
+                    ClientId = (SELECT Id FROM Clients WHERE Email = source.ClientEmail),
+                    TransactionDate = source.TransactionDate,
+                    Amount = source.Amount
+            WHEN NOT MATCHED THEN
+                INSERT (TransactionId, ClientId, Amount, TransactionDate)
                 VALUES (
-                    @TransactionId, 
-                    (SELECT Id FROM Clients WHERE Email = @ClientEmail),
-                    @TransactionDate,
-                    @Amount);
-            END
+                    source.TransactionId,
+                    (SELECT Id FROM Clients WHERE Email = source.ClientEmail),
+                    source.Amount,
+                    source.TransactionDate);
         ";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);

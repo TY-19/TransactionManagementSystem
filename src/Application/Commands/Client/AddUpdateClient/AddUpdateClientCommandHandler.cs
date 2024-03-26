@@ -20,17 +20,15 @@ public class AddUpdateClientCommandHandler(
         };
 
         string sql = @$"
-            IF EXISTS(SELECT Id AS ClientId FROM Clients WHERE Email = @Email)
-            BEGIN
-                UPDATE Clients
-                SET Name = @Name, Latitude = @Latitude, Longitude = @Longitude
-                WHERE Email = @Email
-            END
-            ELSE
-            BEGIN
-                INSERT INTO Clients(Name, Email, Latitude, Longitude)
-                VALUES (@Name, @Email, @Latitude, @Longitude)
-            END
+            MERGE INTO Clients
+            USING (VALUES (@Name, @Email, @Latitude, @Longitude))
+                AS source (Name, Email, Latitude, Longitude)
+            ON Clients.Email = source.Email
+            WHEN MATCHED THEN
+                UPDATE SET Name = source.Name, Latitude = source.Latitude, Longitude = source.Longitude
+            WHEN NOT MATCHED THEN
+                INSERT (Email, Name, Latitude, Longitude)
+                VALUES (source.Email, source.Name, source.Latitude, source.Longitude);
         ";
 
         using var dbConnection = new SqlConnection(connectionOptions.ConnectionString);

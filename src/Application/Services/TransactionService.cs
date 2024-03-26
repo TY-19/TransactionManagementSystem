@@ -6,7 +6,6 @@ using TMS.Application.Commands.Transaction.AddUpdateTransaction;
 using TMS.Application.Interfaces;
 using TMS.Application.Models;
 using TMS.Application.Queries.TransactionClient.GetTransactionsClients;
-using TMS.Application.Queries.TransactionClient.GetTransactionsClientsByTimePeriod;
 using TMS.Domain.Enums;
 
 namespace TMS.Application.Services;
@@ -85,14 +84,24 @@ public class TransactionService(
         return response;
     }
 
-    /// <inheritdoc cref="ITransactionService.ExportToExcelAsync(string, string?, bool, TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?, CancellationToken)"/>
-    public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
-        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+    /// <inheritdoc cref="ITransactionService.GetTransactionsAsync(string, string?, bool, TimeZoneDetails?, DateOnly?, DateOnly?, CancellationToken)"/>
+    public async Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(
+        string columns, string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
+        DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
     {
         List<TransactionPropertyName> requestedProperties = propertyManager
             .GetPropertiesTypes(columns.Split(','));
 
-        GetTransactionsClientsQuery query = PrepareQuery(requestedProperties, sortBy, sortAsc,
+        return await GetTransactionsAsync(requestedProperties, sortBy, sortAsc, timeZoneDetails,
+            startDate, endDate, cancellationToken);
+    }
+
+    private async Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(
+        List<TransactionPropertyName> properties, string? sortBy, bool sortAsc,
+        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate,
+        CancellationToken cancellationToken)
+    {
+        GetTransactionsClientsQuery query = PrepareQuery(properties, sortBy, sortAsc,
             timeZoneDetails, startDate, endDate);
 
         IEnumerable<TransactionExportDto> transactions = await mediator.Send(query, cancellationToken);
@@ -101,6 +110,19 @@ public class TransactionService(
         {
             transactions = ApplyDstRules(transactions, timeZoneDetails, startDate, endDate, cancellationToken);
         }
+        return transactions;
+    }
+
+    /// <inheritdoc cref="ITransactionService.ExportToExcelAsync(string, string?, bool, TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?, CancellationToken)"/>
+    public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
+        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+    {
+        List<TransactionPropertyName> requestedProperties = propertyManager
+            .GetPropertiesTypes(columns.Split(','));
+
+        IEnumerable<TransactionExportDto> transactions = await GetTransactionsAsync(
+            requestedProperties, sortBy, sortAsc, timeZoneDetails, startDate, endDate, cancellationToken);
+
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedProperties, cancellationToken);
     }
 
@@ -132,17 +154,6 @@ public class TransactionService(
     public string GetExcelFileMimeType()
     {
         return xlsxHelper.ExcelMimeType;
-    }
-
-    /// <inheritdoc cref="ITransactionService.GetForTimePeriodAsync(DateOnly, DateOnly)"/>
-    public async Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(
-        DateOnly dateFrom, DateOnly dateTo)
-    {
-        return await mediator.Send(new GetTransactionsClientsByTimePeriodQuery()
-        {
-            DateFrom = dateFrom,
-            DateTo = dateTo
-        });
     }
 
     private List<TransactionExportDto> ApplyDstRules(IEnumerable<TransactionExportDto> transactions,

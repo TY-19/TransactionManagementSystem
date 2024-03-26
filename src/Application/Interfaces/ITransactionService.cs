@@ -17,6 +17,31 @@ public interface ITransactionService
     Task<OperationResult> ImportFromCsvAsync(Stream stream, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Provides a way to get the list of the transactions selected and sorted by specified rules.
+    /// </summary>
+    /// <param name="columns">Comma-separated column names in the desired order.</param>
+    /// <param name="sortBy">Name of the column to sort by.</param>
+    /// <param name="sortAsc">
+    ///     If set to true, exported transactions are sorted in ascending order;
+    ///     otherwise, they are sorted in descending order.
+    /// </param>
+    /// <param name="timeZoneDetails">
+    ///     The <see cref="TimeZoneDetails"/> of the time zone to display time in.
+    /// </param>
+    /// <param name="startDate">
+    ///     The lower time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
+    ///     or the time zone of the transaction.
+    /// </param>
+    /// <param name="endDate">
+    ///     The upper time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
+    ///     or the time zone of the transaction.
+    /// </param>
+    /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
+    /// <returns>The list of the transactions.</returns>
+    Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(string columns, string? sortBy, bool sortAsc,
+        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Provides a way to export transactions into an Excel file with defined columns,
     /// selected and sorted by specified rules.
     /// </summary>
@@ -57,12 +82,4 @@ public interface ITransactionService
     /// </summary>
     /// <returns>The MIME Type.</returns>
     string GetExcelFileMimeType();
-
-    /// <summary>
-    /// Allows to get transactions for the specified period of time.
-    /// </summary>
-    /// <param name="dateFrom">The start of the period.</param>
-    /// <param name="dateTo">The end of the period.</param>
-    /// <returns>List of transactions in the specified time period.</returns>
-    Task<IEnumerable<TransactionDto>> GetForTimePeriodAsync(DateOnly dateFrom, DateOnly dateTo);
 }
