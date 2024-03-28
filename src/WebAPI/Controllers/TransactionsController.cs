@@ -76,15 +76,15 @@ public class TransactionsController(
     /// time zone is used. To get all available time zones see
     /// <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
     /// </param>
-    /// <param name="startDate">
+    /// <param name="dateFrom">
     /// Date in format yyyy-MM-dd.
     /// If set, transactions with transactionDate starting on this or following dates will be returned.
-    /// Can be combined with <paramref name="endDate"/> to narrow the date range.
+    /// Can be combined with <paramref name="dateTo"/> to narrow the date range.
     /// </param>
-    /// <param name="endDate">
+    /// <param name="dateTo">
     /// Date in format yyyy-MM-dd.
     /// If set, transactions with transactionDate on this or previous dates will be returned.
-    /// Can be combined with <paramref name="startDate"/> to narrow the date range.
+    /// Can be combined with <paramref name="dateFrom"/> to narrow the date range.
     /// </param>
     /// <remarks>
     /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
@@ -101,7 +101,7 @@ public class TransactionsController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> ExportTransactionsToExcel(string columns = defaultColumnsToExport,
         string? sortBy = null, bool sortAsc = true, bool useUserTimeZone = false,
-        string? timeZoneIanaName = null, DateOnly? startDate = null, DateOnly? endDate = null)
+        string? timeZoneIanaName = null, DateOnly? dateFrom = null, DateOnly? dateTo = null)
     {
         OperationResult<TimeZoneDetails> tzsResponse = await timeZoneService.GetTimeZoneAsync(
             timeZoneIanaName, useUserTimeZone, Request.HttpContext.Connection.RemoteIpAddress,
@@ -112,10 +112,10 @@ public class TransactionsController(
         }
 
         TimeZoneDetails? timeZone = tzsResponse.Payload;
-        string fileName = transactionService.GetTransactionsFileName(timeZone, startDate, endDate);
+        string fileName = transactionService.GetTransactionsFileName(timeZone, dateFrom, dateTo);
         string fileType = transactionService.GetExcelFileMimeType();
         MemoryStream fileStream = await transactionService
-            .ExportToExcelAsync(columns, sortBy, sortAsc, timeZone, startDate, endDate,
+            .ExportToExcelAsync(columns, sortBy, sortAsc, timeZone, dateFrom, dateTo,
             Request.HttpContext.RequestAborted);
 
         return File(fileStream, fileType, fileName);
@@ -155,15 +155,15 @@ public class TransactionsController(
     /// time zone is used. To get all available time zones see
     /// <code>https://timeapi.io/api/TimeZone/AvailableTimeZones</code>
     /// </param>
-    /// <param name="startDate">
+    /// <param name="dateFrom">
     /// Date in format yyyy-MM-dd.
     /// If set, transactions with transactionDate starting on this or following dates will be returned.
-    /// Can be combined with <paramref name="endDate"/> to narrow the date range.
+    /// Can be combined with <paramref name="dateTo"/> to narrow the date range.
     /// </param>
-    /// <param name="endDate">
+    /// <param name="dateTo">
     /// Date in format yyyy-MM-dd.
     /// If set, transactions with transactionDate on this or previous dates will be returned.
-    /// Can be combined with <paramref name="startDate"/> to narrow the date range.
+    /// Can be combined with <paramref name="dateFrom"/> to narrow the date range.
     /// </param>
     /// <remarks>
     /// If timeInUserTimeZone is set to true, the date scope specified in startYear, startMonth,
@@ -180,7 +180,7 @@ public class TransactionsController(
     public async Task<ActionResult<IEnumerable<TransactionDto>>> GetTransactions(
         string columns = defaultColumnsToExport,
         string? sortBy = null, bool sortAsc = true, bool useUserTimeZone = false,
-        string? timeZoneIanaName = null, DateOnly? startDate = null, DateOnly? endDate = null)
+        string? timeZoneIanaName = null, DateOnly? dateFrom = null, DateOnly? dateTo = null)
     {
         OperationResult<TimeZoneDetails> tzsResponse = await timeZoneService.GetTimeZoneAsync(
             timeZoneIanaName, useUserTimeZone, Request.HttpContext.Connection.RemoteIpAddress,
@@ -191,6 +191,6 @@ public class TransactionsController(
         }
 
         return Ok(await transactionService.GetTransactionsAsync(columns, sortBy, sortAsc,
-            tzsResponse.Payload, startDate, endDate, Request.HttpContext.RequestAborted));
+            tzsResponse.Payload, dateFrom, dateTo, Request.HttpContext.RequestAborted));
     }
 }

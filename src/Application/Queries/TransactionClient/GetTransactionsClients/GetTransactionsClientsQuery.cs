@@ -9,8 +9,8 @@ public class GetTransactionsClientsQuery : IRequest<IEnumerable<TransactionExpor
     public string? SortBy { get; set; }
     public bool SortAsc { get; set; }
     public bool UseUserTimeZone { get; set; }
-    public DateOnly? StartDate { get; set; }
-    public DateOnly? EndDate { get; set; }
-    public string StartDateOffset { get; set; } = string.Empty;
-    public string EndDateOffset { get; set; } = string.Empty;
+    public DateOnly? DateFrom { get; set; }
+    public DateOnly? DateTo { get; set; }
+    public string DateFromOffset { get; set; } = string.Empty;
+    public string DateToOffset { get; set; } = string.Empty;
 }

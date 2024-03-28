@@ -8,9 +8,9 @@ using TMS.Domain.Enums;
 namespace TMS.Application.Helpers;
 
 public class CsvHelper(
-    ITimeZoneService _timeZoneService,
-    ITimeZoneHelper _timeZoneHelper,
-    ITransactionPropertyHelper _propertyManager
+    ITimeZoneService timeZoneService,
+    ITimeZoneHelper timeZoneHelper,
+    ITransactionPropertyHelper propertyManager
     ) : ICsvHelper
 {
     private static class Messages
@@ -87,7 +87,7 @@ public class CsvHelper(
     }
     private bool IsHeader(string toCheck)
     {
-        return _propertyManager.GetProperty(toCheck) != null;
+        return propertyManager.GetProperty(toCheck) != null;
     }
     private bool TryParseTransactionId(string toParse, out string transactionId)
     {
@@ -213,12 +213,12 @@ public class CsvHelper(
 
         try
         {
-            OperationResult<TimeZoneDetails> timeZoneDetails = await _timeZoneService
+            OperationResult<TimeZoneDetails> timeZoneDetails = await timeZoneService
                 .GetTimeZoneByCoordinatesAsync(latitude, longitude, cancellationToken);
 
             if (timeZoneDetails.Succeeded && timeZoneDetails.Payload != null)
             {
-                int offsetInSeconds = _timeZoneHelper.GetOffsetInSeconds(localDateTime, timeZoneDetails.Payload);
+                int offsetInSeconds = timeZoneHelper.GetOffsetInSeconds(localDateTime, timeZoneDetails.Payload);
                 return new DateTimeOffset(localDateTime, TimeSpan.FromSeconds(offsetInSeconds));
             }
             else
@@ -238,7 +238,7 @@ public class CsvHelper(
     private string BuildErrorMessage(TransactionPropertyName property, string value,
         string? details = null)
     {
-        string? propName = _propertyManager.GetDisplayedName(property);
+        string? propName = propertyManager.GetDisplayedName(property);
         return $"Cannot parse '{propName}' with value '{value}'. {(details ?? "")} ";
     }
     private string ErrorsToString()

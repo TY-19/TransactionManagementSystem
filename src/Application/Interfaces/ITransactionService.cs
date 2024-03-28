@@ -28,18 +28,18 @@ public interface ITransactionService
     /// <param name="timeZoneDetails">
     ///     The <see cref="TimeZoneDetails"/> of the time zone to display time in.
     /// </param>
-    /// <param name="startDate">
+    /// <param name="dateFrom">
     ///     The lower time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
     ///     or the time zone of the transaction.
     /// </param>
-    /// <param name="endDate">
+    /// <param name="dateTo">
     ///     The upper time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
     ///     or the time zone of the transaction.
     /// </param>
     /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>The list of the transactions.</returns>
     Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(string columns, string? sortBy, bool sortAsc,
-        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken);
+        TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo, CancellationToken cancellationToken);
 
     /// <summary>
     /// Provides a way to export transactions into an Excel file with defined columns,
@@ -54,28 +54,28 @@ public interface ITransactionService
     /// <param name="timeZoneDetails">
     ///     The <see cref="TimeZoneDetails"/> of the time zone to display time in.
     /// </param>
-    /// <param name="startDate">
+    /// <param name="dateFrom">
     ///     The lower time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
     ///     or the time zone of the transaction.
     /// </param>
-    /// <param name="endDate">
+    /// <param name="dateTo">
     ///     The upper time limit of the transaction date in the time zone specified by <paramref name="timeZoneDetails"/>
     ///     or the time zone of the transaction.
     /// </param>
     /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>The Excel file containing the transactions.</returns>
     Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
-        DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken);
+        DateOnly? dateFrom, DateOnly? dateTo, CancellationToken cancellationToken);
 
     /// <summary>
     /// Generates the name of the file based on requested details in the format:
     /// transactions_start_date-end-date_time_zone.xlsx
     /// </summary>
     /// <param name="timeZoneDetails">The <see cref="TimeZoneDetails"/> for the file name.</param>
-    /// <param name="startDate">The start date for the file name.</param>
-    /// <param name="endDate">The end date for the file name.</param>
+    /// <param name="dateFrom">The start date for the file name.</param>
+    /// <param name="dateTo">The end date for the file name.</param>
     /// <returns>The file name.</returns>
-    string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate);
+    string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo);
 
     /// <summary>
     /// Allows to get the MIME type of the .xlsx file.

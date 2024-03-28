@@ -6,8 +6,8 @@ using TMS.Application.Models;
 namespace TMS.Application.Helpers;
 
 public class TimeZoneHelper(
-    IConfiguration _configuration,
-    ILogger<TimeZoneHelper> _logger
+    IConfiguration configuration,
+    ILogger<TimeZoneHelper> logger
     ) : ITimeZoneHelper
 {
     private TimeZoneDetails? _timeZone;
@@ -16,7 +16,7 @@ public class TimeZoneHelper(
     private int? _dstOffsetSeconds = null;
 
     private readonly Dictionary<string, string> _knownTimeZoneAliases =
-        _configuration.GetSection("TimeZoneAliases")?.Get<Dictionary<string, string>>() ?? [];
+        configuration.GetSection("TimeZoneAliases")?.Get<Dictionary<string, string>>() ?? [];
 
     /// <inheritdoc cref="ITimeZoneHelper.GetDateTime(DateTimeOffset, TimeZoneDetails?)"/>
     public DateTime GetDateTime(DateTimeOffset dateTime, TimeZoneDetails? userTimeZone)
@@ -124,8 +124,8 @@ public class TimeZoneHelper(
             return _stdOffsetSeconds;
         }
 
-        _logger.LogWarning("DST rules cannot be resolved for the time zone {timezone}.", _timeZone.TimeZoneName);
-        _logger.LogWarning("The approximate dates for the start and end of daylight saving time will be used.");
+        logger.LogWarning("DST rules cannot be resolved for the time zone {timezone}.", _timeZone.TimeZoneName);
+        logger.LogWarning("The approximate dates for the start and end of daylight saving time will be used.");
 
         int transactionYear = dateTime.Year;
 

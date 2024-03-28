@@ -6,7 +6,7 @@ using TMS.Domain.Enums;
 namespace TMS.Application.Helpers;
 
 public class XlsxHelper(
-    ITransactionPropertyHelper _propertyManager
+    ITransactionPropertyHelper propertyManager
     ) : IXlsxHelper
 {
     private List<Action<TransactionExportDto, int>> _actions = null!;
@@ -45,7 +45,7 @@ public class XlsxHelper(
     }
     private void WriteColumnHeader(int columnNumber, TransactionPropertyName propertyName)
     {
-        _worksheet.Cell(1, columnNumber).Value = _propertyManager.GetDisplayedName(propertyName);
+        _worksheet.Cell(1, columnNumber).Value = propertyManager.GetDisplayedName(propertyName);
     }
     private void SetPropertyForTheColumn(TransactionPropertyName propertyName)
     {

@@ -20,8 +20,8 @@ public class GetTransactionsClientsQueryHandler(
         GetTransactionsClientsQuery request, CancellationToken cancellationToken)
     {
         string columns = BuildSelectClause(request.ColumnNames);
-        string filtering = BuildWhereClause(request.UseUserTimeZone, request.StartDate,
-            request.EndDate, request.StartDateOffset, request.EndDateOffset);
+        string filtering = BuildWhereClause(request.UseUserTimeZone, request.DateFrom,
+            request.DateTo, request.DateFromOffset, request.DateToOffset);
         string ordering = BuildOrderByClause(request.SortBy, request.SortAsc);
 
         string sql = @$"SELECT {columns}
@@ -54,43 +54,43 @@ public class GetTransactionsClientsQueryHandler(
         }
     }
 
-    private static string BuildWhereClause(bool useUserTimeZone, DateOnly? startDate,
-        DateOnly? endDate, string startDateOffset, string endDateOffset)
+    private static string BuildWhereClause(bool useUserTimeZone, DateOnly? DateFrom,
+        DateOnly? DateTo, string DateFromOffset, string DateToOffset)
     {
         return useUserTimeZone
-            ? FilterByUserTimeZone(startDate, endDate, startDateOffset, endDateOffset)
-            : FilterByClientDate(startDate, endDate);
+            ? FilterByUserTimeZone(DateFrom, DateTo, DateFromOffset, DateToOffset)
+            : FilterByClientDate(DateFrom, DateTo);
     }
 
-    private static string FilterByClientDate(DateOnly? startDate, DateOnly? endDate)
+    private static string FilterByClientDate(DateOnly? DateFrom, DateOnly? DateTo)
     {
-        if (startDate == null && endDate == null)
+        if (DateFrom == null && DateTo == null)
         {
             return string.Empty;
         }
-        string start = (startDate ?? DateOnly.MinValue).ToString("yyyy-MM-dd");
-        string end = (endDate ?? DateOnly.MaxValue).ToString("yyyy-MM-dd");
+        string start = (DateFrom ?? DateOnly.MinValue).ToString("yyyy-MM-dd");
+        string end = (DateTo ?? DateOnly.MaxValue).ToString("yyyy-MM-dd");
         return $"WHERE Convert(date, TransactionDate) BETWEEN '{start}' AND '{end}'";
     }
 
-    private static string FilterByUserTimeZone(DateOnly? startDate,
-        DateOnly? endDate, string startDateOffset, string endDateOffset)
+    private static string FilterByUserTimeZone(DateOnly? DateFrom,
+        DateOnly? DateTo, string DateFromOffset, string DateToOffset)
     {
-        if (startDate == null && endDate == null)
+        if (DateFrom == null && DateTo == null)
         {
             return string.Empty;
         }
-        else if (startDate != null && endDate != null)
+        else if (DateFrom != null && DateTo != null)
         {
-            return GetConditionOffsetBothLimits(startDate.Value, endDate.Value, startDateOffset, endDateOffset);
+            return GetConditionOffsetBothLimits(DateFrom.Value, DateTo.Value, DateFromOffset, DateToOffset);
         }
-        else if (startDate != null)
+        else if (DateFrom != null)
         {
-            return GetConditionOffsetEitherLimit(startDate.Value, startDateOffset, true);
+            return GetConditionOffsetEitherLimit(DateFrom.Value, DateFromOffset, true);
         }
         else
         {
-            return GetConditionOffsetEitherLimit(endDate!.Value, endDateOffset, false);
+            return GetConditionOffsetEitherLimit(DateTo!.Value, DateToOffset, false);
         }
     }
 
@@ -101,15 +101,15 @@ public class GetTransactionsClientsQueryHandler(
         return $"WHERE TransactionDate {sign} '{date.Year}-{date.Month}-{date.Day} {time} {offset}' ";
     }
 
-    private static string GetConditionOffsetBothLimits(DateOnly startDate,
-        DateOnly endDate, string startDateOffset, string endDateOffset)
+    private static string GetConditionOffsetBothLimits(DateOnly DateFrom,
+        DateOnly DateTo, string DateFromOffset, string DateToOffset)
     {
         string greaterOrEqual = ">=";
         string smallerOrEqual = "<=";
         string startTime = "00:00:00";
         string endTime = "23:59:59";
-        return @$"WHERE TransactionDate {greaterOrEqual} '{startDate.Year}-{startDate.Month}-{startDate.Day} {startTime} {startDateOffset}'
-                AND TransactionDate {smallerOrEqual} '{endDate.Year}-{endDate.Month}-{endDate.Day} {endTime} {endDateOffset}'";
+        return @$"WHERE TransactionDate {greaterOrEqual} '{DateFrom.Year}-{DateFrom.Month}-{DateFrom.Day} {startTime} {DateFromOffset}'
+                AND TransactionDate {smallerOrEqual} '{DateTo.Year}-{DateTo.Month}-{DateTo.Day} {endTime} {DateToOffset}'";
     }
 
     private static string BuildOrderByClause(string? sortBy, bool sortAsc)

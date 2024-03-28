@@ -20,18 +20,18 @@ public partial class GetTransactionsClientsQueryValidator : AbstractValidator<Ge
         RuleFor(tc => tc.SortBy)
             .Must(sb => sb == null || propertyManager.IsDatabaseColumnName(sb))
                 .WithMessage("Invalid column name.");
-        RuleFor(tc => tc.StartDate)
-            .Must((tc, sd) => sd == null || !tc.EndDate.HasValue || sd < tc.EndDate.Value)
+        RuleFor(tc => tc.DateFrom)
+            .Must((tc, sd) => sd == null || !tc.DateTo.HasValue || sd < tc.DateTo.Value)
                 .WithMessage("Start date must be lesser than end date.");
-        RuleFor(tc => tc.EndDate)
-            .Must((tc, ed) => ed == null || !tc.StartDate.HasValue || ed < tc.StartDate.Value)
+        RuleFor(tc => tc.DateTo)
+            .Must((tc, ed) => ed == null || !tc.DateFrom.HasValue || ed < tc.DateFrom.Value)
                 .WithMessage("End date must be greater than start date.");
-        RuleFor(tc => tc.StartDateOffset)
+        RuleFor(tc => tc.DateFromOffset)
             .NotEmpty()
                 .WithMessage("Start offset must be provided.")
             .Must(ValidateReadableOffset)
                 .WithMessage("Start date offset must be in the format '+00:00'.");
-        RuleFor(tc => tc.EndDateOffset)
+        RuleFor(tc => tc.DateToOffset)
             .NotEmpty()
                 .WithMessage("End offset must be provided.")
             .Must(ValidateReadableOffset)

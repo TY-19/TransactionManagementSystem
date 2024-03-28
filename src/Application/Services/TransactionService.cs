@@ -87,61 +87,61 @@ public class TransactionService(
     /// <inheritdoc cref="ITransactionService.GetTransactionsAsync(string, string?, bool, TimeZoneDetails?, DateOnly?, DateOnly?, CancellationToken)"/>
     public async Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(
         string columns, string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails,
-        DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+        DateOnly? dateFrom, DateOnly? dateTo, CancellationToken cancellationToken)
     {
         List<TransactionPropertyName> requestedProperties = propertyManager
             .GetPropertiesTypes(columns.Split(','));
 
         return await GetTransactionsAsync(requestedProperties, sortBy, sortAsc, timeZoneDetails,
-            startDate, endDate, cancellationToken);
+            dateFrom, dateTo, cancellationToken);
     }
 
     private async Task<IEnumerable<TransactionExportDto>> GetTransactionsAsync(
         List<TransactionPropertyName> properties, string? sortBy, bool sortAsc,
-        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate,
+        TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo,
         CancellationToken cancellationToken)
     {
         GetTransactionsClientsQuery query = PrepareQuery(properties, sortBy, sortAsc,
-            timeZoneDetails, startDate, endDate);
+            timeZoneDetails, dateFrom, dateTo);
 
         IEnumerable<TransactionExportDto> transactions = await mediator.Send(query, cancellationToken);
 
         if (timeZoneDetails != null)
         {
-            transactions = ApplyDstRules(transactions, timeZoneDetails, startDate, endDate, cancellationToken);
+            transactions = ApplyDstRules(transactions, timeZoneDetails, dateFrom, dateTo, cancellationToken);
         }
         return transactions;
     }
 
     /// <inheritdoc cref="ITransactionService.ExportToExcelAsync(string, string?, bool, TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?, CancellationToken)"/>
     public async Task<MemoryStream> ExportToExcelAsync(string columns, string? sortBy, bool sortAsc,
-        TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+        TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo, CancellationToken cancellationToken)
     {
         List<TransactionPropertyName> requestedProperties = propertyManager
             .GetPropertiesTypes(columns.Split(','));
 
         IEnumerable<TransactionExportDto> transactions = await GetTransactionsAsync(
-            requestedProperties, sortBy, sortAsc, timeZoneDetails, startDate, endDate, cancellationToken);
+            requestedProperties, sortBy, sortAsc, timeZoneDetails, dateFrom, dateTo, cancellationToken);
 
         return xlsxHelper.WriteTransactionsIntoXlsxFile(transactions, requestedProperties, cancellationToken);
     }
 
     /// <inheritdoc cref="ITransactionService.GetTransactionsFileName(TimeZoneDetails?, DateFilterParameters?, DateFilterParameters?)"/>
-    public string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate)
+    public string GetTransactionsFileName(TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo)
     {
         string name = "transactions";
-        if (startDate.HasValue && endDate.HasValue)
+        if (dateFrom.HasValue && dateTo.HasValue)
         {
-            name += $"_{startDate.Value.Year}_{startDate.Value.Month}_{startDate.Value.Day}" +
-                $"-{endDate.Value.Year}_{endDate.Value.Month}_{endDate.Value.Day}";
+            name += $"_{dateFrom.Value.Year}_{dateFrom.Value.Month}_{dateFrom.Value.Day}" +
+                $"-{dateTo.Value.Year}_{dateTo.Value.Month}_{dateTo.Value.Day}";
         }
-        else if (startDate != null)
+        else if (dateFrom != null)
         {
-            name += $"_after_{startDate.Value.Year}_{startDate.Value.Month}_{startDate.Value.Day}";
+            name += $"_after_{dateFrom.Value.Year}_{dateFrom.Value.Month}_{dateFrom.Value.Day}";
         }
-        else if (endDate != null)
+        else if (dateTo != null)
         {
-            name += $"_before_{endDate.Value.Year}_{endDate.Value.Month}_{endDate.Value.Day}";
+            name += $"_before_{dateTo.Value.Year}_{dateTo.Value.Month}_{dateTo.Value.Day}";
         }
 
         name += timeZoneDetails == null ? "_clients_time_zones" : $"_{timeZoneDetails.TimeZoneName}_time_zone";
@@ -157,10 +157,10 @@ public class TransactionService(
     }
 
     private List<TransactionExportDto> ApplyDstRules(IEnumerable<TransactionExportDto> transactions,
-        TimeZoneDetails userTimeZone, DateOnly? startDate, DateOnly? endDate, CancellationToken cancellationToken)
+        TimeZoneDetails userTimeZone, DateOnly? dateFrom, DateOnly? dateTo, CancellationToken cancellationToken)
     {
-        DateTimeOffset? start = GetLimitWithOffset(startDate, userTimeZone, true);
-        DateTimeOffset? end = GetLimitWithOffset(endDate, userTimeZone, false);
+        DateTimeOffset? start = GetLimitWithOffset(dateFrom, userTimeZone, true);
+        DateTimeOffset? end = GetLimitWithOffset(dateTo, userTimeZone, false);
 
         List<TransactionExportDto> transactionList = transactions.ToList();
         for (int i = transactionList.Count - 1; i >= 0; i--)
@@ -199,7 +199,7 @@ public class TransactionService(
     }
 
     private GetTransactionsClientsQuery PrepareQuery(List<TransactionPropertyName> requestedProperties,
-        string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails, DateOnly? startDate, DateOnly? endDate
+        string? sortBy, bool sortAsc, TimeZoneDetails? timeZoneDetails, DateOnly? dateFrom, DateOnly? dateTo
         )
     {
         IEnumerable<string> columns = GetDatabaseColumnNames(requestedProperties, timeZoneDetails);
@@ -220,10 +220,10 @@ public class TransactionService(
             SortBy = sortColumn,
             SortAsc = sortAsc,
             UseUserTimeZone = timeZoneDetails != null,
-            StartDate = startDate,
-            EndDate = endDate,
-            StartDateOffset = timeZoneHelper.GetReadableOffset(startOffset),
-            EndDateOffset = timeZoneHelper.GetReadableOffset(endOffset),
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            DateFromOffset = timeZoneHelper.GetReadableOffset(startOffset),
+            DateToOffset = timeZoneHelper.GetReadableOffset(endOffset),
         };
     }
 
